@@ -36,7 +36,6 @@ This is the Spatium Gestu version of StaticHub.
   #include <inttypes.h>
   #include <stdlib.h>
   #include <stdarg.h>
-  #include <time.h>
   #include <string.h>
   #include <stdio.h>
 
