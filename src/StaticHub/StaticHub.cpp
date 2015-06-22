@@ -96,15 +96,15 @@ bool StaticHub::mute_logger = false;
 
 // These are only here until they are migrated to each receiver that deals with them.
 const MessageTypeDef message_defs_dev_specific[] = {
-  {  MANUVR_MSG_GESTURE_LEGEND            , 0x0000,               "GESTURE_LEGEND",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_DEFINITION        , 0x0000,               "GESTURE_DEFINITION",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_OBLITERATE        , 0x0000,               "GESTURE_OBLITERATE",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_LINK              , 0x0000,               "GESTURE_LINK",              ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_UNLINK            , 0x0000,               "GESTURE_UNLINK",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_RECOGNIZED        , 0x0000,               "GESTURE_RECOGNIZED",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_NUANCE            , 0x0000,               "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_DISASSERT         , 0x0000,               "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_ONE_SHOT          , 0x0000,               "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_LEGEND            , MSG_FLAG_EXPORTABLE,  "GESTURE_LEGEND",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_DEFINITION        , MSG_FLAG_EXPORTABLE,  "GESTURE_DEFINITION",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_OBLITERATE        , MSG_FLAG_EXPORTABLE,  "GESTURE_OBLITERATE",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_LINK              , MSG_FLAG_EXPORTABLE,  "GESTURE_LINK",              ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_UNLINK            , MSG_FLAG_EXPORTABLE,  "GESTURE_UNLINK",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_RECOGNIZED        , MSG_FLAG_EXPORTABLE,  "GESTURE_RECOGNIZED",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_NUANCE            , MSG_FLAG_EXPORTABLE,  "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_DISASSERT         , MSG_FLAG_EXPORTABLE,  "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_ONE_SHOT          , MSG_FLAG_EXPORTABLE,  "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE }, //
   {  MANUVR_MSG_SENSOR_MGC3130            , MSG_FLAG_IDEMPOTENT,  "SENSOR_MGC3130",            ManuvrMsg::MSG_ARGS_NONE }, //
 };
 
@@ -557,9 +557,6 @@ int8_t StaticHub::callback_proc(ManuvrEvent *event) {
   switch (event->event_code) {
     case MANUVR_MSG_SYS_BOOT_COMPLETED:
       StaticHub::log("Boot complete.\n");
-      if (mgc3130) {
-        mgc3130->markClean();
-      }
       boot_completed = true;
       break;
     default:
