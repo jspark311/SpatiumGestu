@@ -20,7 +20,7 @@ void timerCallbackScheduler() {  if (scheduler) scheduler->advanceScheduler(); }
 
 
 void setup() {
-  Serial.begin(115200);   // USB debugging.
+  Serial.begin(HOST_BAUD_RATE);   // USB debugging.
   pinMode(13, OUTPUT);
   sh = StaticHub::getInstance();
   sh->bootstrap();

@@ -21,9 +21,9 @@ This is one of the files that the application author is required to provide. Thi
 *   a microcontroller would want to limit it's counterparty's use of precious RAM. PROTOCOL_MTU, therefore,
 *   determines the effective maximum packet size for this device.
 */
-#define PROTOCOL_MTU              6000                  // See MTU notes above....
-#define VERSION_STRING            "0.1.0"               // We should be able to communicate version so broken behavior can be isolated.
-#define HW_VERSION_STRING         "0"                   // Because we are strictly-software, we report as such.
+#define PROTOCOL_MTU              2000                  // See MTU notes above....
+#define VERSION_STRING            "0.1.1"               // We should be able to communicate version so broken behavior can be isolated.
+#define HW_VERSION_STRING         "1"                   // First revision of the hardware.
 #define IDENTITY_STRING           "Spatium Gestu"       // Might also be a hash....
 //#define EXTENDED_DETAIL_STRING    "RasPiBuild"           // Optional. User-defined.
 #define PROTOCOL_VERSION          0x00000001             // The protocol version we are using.
