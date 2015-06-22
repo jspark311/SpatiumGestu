@@ -56,7 +56,8 @@ void stdout_funnel() {
       StaticHub::log_buffer.clear();
     }
     else {
-      printf("%s", StaticHub::log_buffer.position(0));
+      //printf("%s", StaticHub::log_buffer.position(0));
+      Serial.print((char*) StaticHub::log_buffer.position(0));
       StaticHub::log_buffer.drop_position(0);
     }
   }
@@ -105,7 +106,8 @@ const MessageTypeDef message_defs_dev_specific[] = {
   {  MANUVR_MSG_GESTURE_NUANCE            , MSG_FLAG_EXPORTABLE,  "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE }, //
   {  MANUVR_MSG_GESTURE_DISASSERT         , MSG_FLAG_EXPORTABLE,  "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE }, //
   {  MANUVR_MSG_GESTURE_ONE_SHOT          , MSG_FLAG_EXPORTABLE,  "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_SENSOR_MGC3130            , MSG_FLAG_IDEMPOTENT,  "SENSOR_MGC3130",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_SENSOR_MGC3130            , MSG_FLAG_IDEMPOTENT,  "MGC3130",                   ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_SENSOR_MGC3130_INIT       , MSG_FLAG_IDEMPOTENT,  "MGC3130_INIT",              ManuvrMsg::MSG_ARGS_NONE }, //
 };
 
 
