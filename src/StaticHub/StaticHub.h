@@ -1,11 +1,8 @@
-                                         /*
+/*
 File:   StaticHub.h
 Author: J. Ian Lindsay
 Date:   2014.07.01
 
-
-Copyright (C) 2014 J. Ian Lindsay
-All rights reserved.
 
 This library is free software; you can redistribute it and/or
 modify it under the terms of the GNU Lesser General Public
@@ -48,9 +45,13 @@ This is the Spatium Gestu version of StaticHub.
   #define LOG_INFO    6    /* informational */
   #define LOG_DEBUG   7    /* debug-level messages */
 
-  #include <ManuvrOS/EventManager.h>
   #include <ManuvrOS/Scheduler.h>
+  #include <ManuvrOS/EventManager.h>
   #include <StringBuilder/StringBuilder.h>
+
+#ifdef ARDUINO
+  #include <Arduino.h>
+#endif
 
 #ifdef __cplusplus
  extern "C" {
@@ -85,7 +86,8 @@ class StaticHub : public EventReceiver {
     volatile static uint8_t  watchdog_mark;
 
     static StringBuilder log_buffer;
-    
+    static bool mute_logger; 
+
     StaticHub(void);
     static StaticHub* getInstance(void);
     int8_t bootstrap(void);
@@ -104,14 +106,17 @@ class StaticHub : public EventReceiver {
     static volatile bool provide_random_int(uint32_t);              // Provides a new random to StaticHub from the RNG ISR.
     static volatile uint32_t getStackPointer(void);                 // Returns the value of the stack pointer and prints some data.
     
+        
     bool setTimeAndDate(char*);   // Takes a string of the form given by RFC-2822: "Mon, 15 Aug 2005 15:52:01 +0000"   https://www.ietf.org/rfc/rfc2822.txt
     uint32_t currentTimestamp(void);         // Returns an integer representing the current datetime.
     void currentTimestamp(StringBuilder*);   // Same, but writes a string representation to the argument.
     void currentDateTime(StringBuilder*);    // Writes a human-readable datetime to the argument.
+    
 
     // Call this to accumulate characters from the USB layer into a buffer.
     // Pass terminal=true to cause StaticHub to proc an accumulated command from the host PC.
     void feedUSBBuffer(uint8_t *buf, int len, bool terminal);
+
 
     /*
     * These are global resource accessor functions. They are called once from each class that
@@ -168,7 +173,6 @@ class StaticHub : public EventReceiver {
     void print_type_sizes(void);
 
     // These functions handle various stages of bootstrap...
-    void clock_init(void) volatile;
     void gpioSetup(void) volatile;        // We call this once on bootstrap. Sets up GPIO not covered by other classes.
     void nvicConf(void) volatile;         // We call this once on bootstrap. Sets up IRQs not covered by other classes.
     void init_RNG(void) volatile;         // Fire up the random number generator.
@@ -179,9 +183,6 @@ class StaticHub : public EventReceiver {
     
     void off_class_interrupts(bool enable);
     void maskable_interrupts(bool enable);
-
-    // System-wide behavior changes...
-    void enableExternalClock(bool on);    // Turn on the external osciallator and switch the system clock to use it.
 };
 
 #ifdef __cplusplus

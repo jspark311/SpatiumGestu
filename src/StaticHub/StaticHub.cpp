@@ -23,20 +23,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-#include "StaticHub.h"
+#include "StaticHub/StaticHub.h"
 #include "ManuvrOS/Drivers/i2c-adapter/i2c-adapter.h"
+#include <ManuvrOS/EventManager.h>
+#include <ManuvrOS/XenoSession/XenoSession.h>
+
+#include <Time/Time.h>
+#include <unistd.h>
+
 
 #include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
 
-#include <sys/time.h>
-#include <unistd.h>
-
-#include "ManuvrOS/XenoSession/XenoSession.h" // This is only here to get type sizes.
-
-
-extern volatile I2CAdapter* i2c;
-
 // Externs and prototypes...
+extern volatile I2CAdapter* i2c;
 uint32_t profiler_mark_0 = 0;
 uint32_t profiler_mark_1 = 0;
 
@@ -80,14 +79,6 @@ void stdout_funnel() {
         }
         return 0;
     }
-
-int _gettimeofday(struct timeval *tv, void *tzvp ) {
-    uint32_t t = micros();  // get uptime in nanoseconds
-    tv->tv_sec = t / 1000000000;  // convert to seconds
-    tv->tv_usec = ( t % 1000000000 ) / 1000;  // get remaining microseconds
-    return 0;  // return non-zero for error
-}
-
   } // end extern "C" section
 #endif
 
@@ -99,6 +90,14 @@ volatile StaticHub* StaticHub::INSTANCE = NULL;
 volatile uint32_t StaticHub::next_random_int[STATICHUB_RNG_CARRY_CAPACITY];
 volatile uint32_t StaticHub::millis_since_reset = 1;   // Start at one because WWDG.
 volatile uint8_t  StaticHub::watchdog_mark = 42;
+
+bool StaticHub::mute_logger = false;
+
+
+// These are only here until they are migrated to each receiver that deals with them.
+const MessageTypeDef message_defs_dev_specific[] = {
+};
+
 
 
 /****************************************************************************************************
@@ -196,6 +195,12 @@ volatile uint32_t StaticHub::getStackPointer(void) {
 * @return   True if the RNG should continue supplying us, false if it should take a break until we need more.
 */
 volatile bool StaticHub::provide_random_int(uint32_t nu_rnd) {
+  for (uint8_t i = 0; i < STATICHUB_RNG_CARRY_CAPACITY; i++) {
+    if (next_random_int[i] == 0) {
+      next_random_int[i] = nu_rnd;
+      return (i == STATICHUB_RNG_CARRY_CAPACITY-1) ? false : true;
+    }
+  }
   return false;
 }
 
@@ -244,8 +249,32 @@ void StaticHub::currentTimestamp(StringBuilder* target) {
 * 2004-02-12T15:19:21+00:00
 */
 void StaticHub::currentDateTime(StringBuilder* target) {
-  if (target != NULL) {
-  }
+	if (target != NULL) {
+	  #ifdef STM32F4XX
+		  RTC_TimeTypeDef RTC_TimeStructure;
+		  RTC_DateTypeDef RTC_DateStructure;
+		  RTC_GetTimeStamp(RTC_Format_BIN, &RTC_TimeStructure, &RTC_DateStructure);
+		  
+		  TM_RTC_Time_t current_datetime;
+		  TM_RTC_GetDateTime(&current_datetime, TM_RTC_Format_BIN);
+		  target->concatf("%02d.%02d.%04d %02d:%02d:%02d  Unix: %u\n",
+                  current_datetime.date,
+                  current_datetime.month,
+                  current_datetime.year + 2000,
+                  current_datetime.hours,
+                  current_datetime.minutes,
+                  current_datetime.seconds,
+                  current_datetime.unix);
+		  
+		  target->concatf("%d-%d-%dT", RTC_DateStructure.RTC_Year, RTC_DateStructure.RTC_Month, RTC_DateStructure.RTC_Date);
+		  target->concatf("%d:%d:%d+00:00", RTC_TimeStructure.RTC_Hours, RTC_TimeStructure.RTC_Minutes, RTC_TimeStructure.RTC_Seconds);
+		#elif defined(__MK20DX256__) | defined(__MK20DX128__)
+		  target->concatf("%04d-%02d-%02dT", year(), month(), day());
+		  target->concatf("%02d:%02d:%02d+00:00", hour(), minute(), second());
+		#else
+		  target->concat("<UNSUPPORTED PLATFORM>\n");
+		#endif
+	}
 }
 
 
@@ -254,7 +283,6 @@ void StaticHub::currentDateTime(StringBuilder* target) {
 /****************************************************************************************************
 * Functions that deal with clock and mode switching...                                              *
 ****************************************************************************************************/
-
 
 /*
 * Call this with a boolean to enable or disable maskable interrupts globally.
@@ -283,8 +311,24 @@ void StaticHub::maskable_interrupts(bool enable) {
 *   their own interrupts online. Solve that before trying to make this pretty.
 */
 void StaticHub::off_class_interrupts(bool enable) {
+  if (enable) {  sei();  }
+  else {         cli();  }
 }
 
+
+volatile void jumpToBootloader(void) {
+  _reboot_Teensyduino_();
+}
+
+
+volatile void reboot(void) {
+  #if defined(__MK20DX256__)
+    *((uint32_t *)0xE000ED0C) = 0x5FA0004;
+    //_restart_Teensyduino_();
+  #elif defined(__MK20DX128__)
+    *((uint32_t *)0xE000ED0C) = 0x5FA0004;
+  #endif
+}
 
 
 
@@ -306,19 +350,6 @@ StaticHub bootstrap and setup fxns. This code is only ever called to initiallize
 ****************************************************************************************************/
 
 /*
-* Some peripherals and operations need a bit of time to complete. This function is called from a
-*   one-shot schedule and performs all of the cleanup for latent consequences of bootstrap().
-*/
-int8_t StaticHub::bootComplete() {
-  //EventReceiver::bootComplete()  <--- Note that we aren't going to do this. We already know about the scheduler.
-  
-  // Now configure interrupts, lift interrupt masks, and let the madness begin.
-  off_class_interrupts(true);
-  return 1;
-}
-
-
-/*
 * When the system comes to life, we will want to setup some periodic schedules.
 * Even for schedules that are meant to be one-shots, we will try to avoid a malloc()/free()
 *   cycle if it's going to be a regular event. Just pre-build some schedules that we know
@@ -329,7 +360,7 @@ void StaticHub::initSchedules(void) {
   __scheduler.disableSchedule(pid_profiler_report);
 
   // This schedule marches the data into the USB VCP at a throttled rate.
-  pid_log_moderator = __scheduler.createSchedule(5,  -1, false, stdout_funnel);
+  pid_log_moderator = __scheduler.createSchedule(7,  -1, false, stdout_funnel);
   __scheduler.delaySchedule(pid_log_moderator, 1000);
 }
 
@@ -338,7 +369,12 @@ void StaticHub::initSchedules(void) {
 * Init the RNG. Short and sweet.
 */
 void StaticHub::init_RNG(void) volatile {
-  srand(time(NULL));          // Seed the PRNG...
+  // Zero the random number cache.
+  for (uint8_t i = 0; i < STATICHUB_RNG_CARRY_CAPACITY; i++) next_random_int[i] = 0;
+  
+  #ifdef ARDUINO
+    randomSeed(analogRead(0));
+  #endif
 }
 
 
@@ -347,7 +383,20 @@ void StaticHub::init_RNG(void) volatile {
 * Informed by code here:
 * http://autoquad.googlecode.com/svn/trunk/onboard/rtc.c
 */
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+  time_t getTeensy3Time() {   return Teensy3Clock.get();   }
+#endif
+
 void StaticHub::initRTC(void) volatile {
+  #if defined(__MK20DX256__) | defined(__MK20DX128__)
+    setSyncProvider(getTeensy3Time);
+    if (timeStatus() != timeSet) {
+      rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_UNSET;
+    }
+    else {
+      rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_SET;
+    }
+  #endif
 }
 
 
@@ -373,22 +422,24 @@ void StaticHub::gpioSetup() volatile {
 void StaticHub::nvicConf() volatile {
 }
 
-
-
-void StaticHub::clock_init(void) volatile {
-}
-
   
-
 /*
 * The primary init function. Calling this will bring the entire system online if everything is
 *   working nominally.
 */
 int8_t StaticHub::bootstrap() {
-  log_buffer.concatf("\n\%s v%s    Build date: %s %s\nBootstrap completed.\n\n", IDENTITY_STRING, VERSION_STRING, __DATE__, __TIME__);
-  
-  event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
+  log_buffer.concatf("\n\n%s v%s    Build date: %s %s\nBootstrap beginning...\n", IDENTITY_STRING, VERSION_STRING, __DATE__, __TIME__);
+
+  // One of the first things we need to do is populate the EventManager with all of the
+  // message codes that come with this firmware.
+  int mes_count = sizeof(message_defs_dev_specific) / sizeof(MessageTypeDef);
+  for (int i = 0; i < mes_count; i++) {
+    ManuvrMsg::message_defs_extended.insert(&message_defs_dev_specific[i]);
+//    log_buffer.concatf("Adding %s\n", message_defs_dev_specific[i].debug_label);
+  }
+
   event_manager.subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
+  event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
 
   // Setup the first i2c adapter and Subscribe it to EventManager.
   i2c = new I2CAdapter(0);
@@ -400,12 +451,14 @@ int8_t StaticHub::bootstrap() {
   event_manager.subscribe((EventReceiver*) mgc3130);
   
   init_RNG();      // Fire up the RNG...
-
+  initRTC();
   initSchedules();   // We know we will need some schedules...
 
   mgc3130->init();
 
-  EventManager::raiseEvent(MANUVR_MSG_SYS_BOOT_COMPLETED, this);  // Bootstrap complete
+  ManuvrEvent *boot_completed_ev = EventManager::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
+  //boot_completed_ev->priority = EVENT_PRIORITY_HIGHEST;
+  raiseEvent(boot_completed_ev);
   return 0;
 }
 
@@ -418,8 +471,6 @@ int8_t StaticHub::bootstrap() {
 */
 StaticHub* StaticHub::getInstance() {
   if (StaticHub::INSTANCE == NULL) {
-    // TODO: remove last traces of this pattern.
-    // This should never happen, but if it does, it will crash us for sure.
     StaticHub::INSTANCE = new StaticHub();
   }
   // And that is how the singleton do...
@@ -428,8 +479,8 @@ StaticHub* StaticHub::getInstance() {
 
 
 StaticHub::StaticHub() {
-  mgc3130             = NULL;
   StaticHub::INSTANCE = this;
+  scheduler = &__scheduler;
   start_time_micros = micros();
 }
 
@@ -442,26 +493,37 @@ StaticHub::StaticHub() {
 
 Scheduler*    StaticHub::fetchScheduler(void) {     return &__scheduler;     }
 EventManager* StaticHub::fetchEventManager(void) {  return &event_manager;   }
-
-// Sensor accessor fxns...
 MGC3130*      StaticHub::fetchMGC3130(void) {       return mgc3130;          }
 
 
 /****************************************************************************************************
- ▄▄▄▄▄▄▄▄▄▄▄  ▄               ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄        ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄ 
-▐░░░░░░░░░░░▌▐░▌             ▐░▌▐░░░░░░░░░░░▌▐░░▌      ▐░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌
-▐░█▀▀▀▀▀▀▀▀▀  ▐░▌           ▐░▌ ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌░▌     ▐░▌ ▀▀▀▀█░█▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ 
-▐░▌            ▐░▌         ▐░▌  ▐░▌          ▐░▌▐░▌    ▐░▌     ▐░▌     ▐░▌          
-▐░█▄▄▄▄▄▄▄▄▄    ▐░▌       ▐░▌   ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌ ▐░▌   ▐░▌     ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄ 
-▐░░░░░░░░░░░▌    ▐░▌     ▐░▌    ▐░░░░░░░░░░░▌▐░▌  ▐░▌  ▐░▌     ▐░▌     ▐░░░░░░░░░░░▌
-▐░█▀▀▀▀▀▀▀▀▀      ▐░▌   ▐░▌     ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌   ▐░▌ ▐░▌     ▐░▌      ▀▀▀▀▀▀▀▀▀█░▌
-▐░▌                ▐░▌ ▐░▌      ▐░▌          ▐░▌    ▐░▌▐░▌     ▐░▌               ▐░▌
-▐░█▄▄▄▄▄▄▄▄▄        ▐░▐░▌       ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌     ▐░▐░▌     ▐░▌      ▄▄▄▄▄▄▄▄▄█░▌
-▐░░░░░░░░░░░▌        ▐░▌        ▐░░░░░░░░░░░▌▐░▌      ▐░░▌     ▐░▌     ▐░░░░░░░░░░░▌
- ▀▀▀▀▀▀▀▀▀▀▀          ▀          ▀▀▀▀▀▀▀▀▀▀▀  ▀        ▀▀       ▀       ▀▀▀▀▀▀▀▀▀▀▀ 
-
-These are overrides from EventReceiver interface...
+*  ▄▄▄▄▄▄▄▄▄▄▄  ▄               ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄        ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄ 
+* ▐░░░░░░░░░░░▌▐░▌             ▐░▌▐░░░░░░░░░░░▌▐░░▌      ▐░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌
+* ▐░█▀▀▀▀▀▀▀▀▀  ▐░▌           ▐░▌ ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌░▌     ▐░▌ ▀▀▀▀█░█▀▀▀▀ ▐░█▀▀▀▀▀▀▀▀▀ 
+* ▐░▌            ▐░▌         ▐░▌  ▐░▌          ▐░▌▐░▌    ▐░▌     ▐░▌     ▐░▌          
+* ▐░█▄▄▄▄▄▄▄▄▄    ▐░▌       ▐░▌   ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌ ▐░▌   ▐░▌     ▐░▌     ▐░█▄▄▄▄▄▄▄▄▄ 
+* ▐░░░░░░░░░░░▌    ▐░▌     ▐░▌    ▐░░░░░░░░░░░▌▐░▌  ▐░▌  ▐░▌     ▐░▌     ▐░░░░░░░░░░░▌
+* ▐░█▀▀▀▀▀▀▀▀▀      ▐░▌   ▐░▌     ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌   ▐░▌ ▐░▌     ▐░▌      ▀▀▀▀▀▀▀▀▀█░▌
+* ▐░▌                ▐░▌ ▐░▌      ▐░▌          ▐░▌    ▐░▌▐░▌     ▐░▌               ▐░▌
+* ▐░█▄▄▄▄▄▄▄▄▄        ▐░▐░▌       ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌     ▐░▐░▌     ▐░▌      ▄▄▄▄▄▄▄▄▄█░▌
+* ▐░░░░░░░░░░░▌        ▐░▌        ▐░░░░░░░░░░░▌▐░▌      ▐░░▌     ▐░▌     ▐░░░░░░░░░░░▌
+*  ▀▀▀▀▀▀▀▀▀▀▀          ▀          ▀▀▀▀▀▀▀▀▀▀▀  ▀        ▀▀       ▀       ▀▀▀▀▀▀▀▀▀▀▀ 
+* 
+* These are overrides from EventReceiver interface...
 ****************************************************************************************************/
+
+/*
+* Some peripherals and operations need a bit of time to complete. This function is called from a
+*   one-shot schedule and performs all of the cleanup for latent consequences of bootstrap().
+*/
+int8_t StaticHub::bootComplete() {
+  //EventReceiver::bootComplete()  <--- Note that we aren't going to do this. We already know about the scheduler.
+  off_class_interrupts(true);  // Now configure interrupts, lift interrupt masks, and let the madness begin.
+  return 1;
+}
+
+
+
 /**
 * If we find ourselves in this fxn, it means an event that this class built (the argument)
 *   has been serviced and we are now getting the chance to see the results. The argument 
@@ -489,7 +551,7 @@ int8_t StaticHub::callback_proc(ManuvrEvent *event) {
         mgc3130->service();
         mgc3130->markClean();
       }
-
+      boot_completed = true;
       break;
     default:
       break;
@@ -512,9 +574,11 @@ int8_t StaticHub::notify(ManuvrEvent *active_event) {
       break;
     case MANUVR_MSG_SYS_REBOOT:
       maskable_interrupts(false);
+      reboot();
       break;
     case MANUVR_MSG_SYS_BOOTLOADER:
       maskable_interrupts(false);
+      jumpToBootloader();
       break;
 
 
@@ -577,13 +641,8 @@ TODO: Keep them as short as possible.
 * Called from the SysTick handler once per ms.
 */
 volatile void StaticHub::advanceScheduler(void) {
-  if (0 == (millis_since_reset++ % watchdog_mark)) {
-    /* If it's time to punch the watchdog, do so. Doing it in the ISR will prevent a
-         long-running operation from causing a reset. This way, the only thing that will
-         cause a watchdog reset is if this ISR fails to fire. */
-  }
-  // TODO: advanceScheduler() can be made *much* faster with a bit of re-work in the Scheduler class.
-  if (NULL != INSTANCE) ((StaticHub*) INSTANCE)->__scheduler.advanceScheduler();
+  // No watchdog timer on this platform. Therefore, we call
+  //   the scheduler from the main loop.
 }
 
 
@@ -642,6 +701,7 @@ void StaticHub::printDebug(StringBuilder* output) {
   
   EventReceiver::printDebug(output);
   output->concatf("--- %s v%s    Build date: %s %s\n\n", IDENTITY_STRING, VERSION_STRING, __DATE__, __TIME__);
+  output->concatf("---\n--- boot_completed  %s\n", (boot_completed) ? "yes" : "no");
   output->concatf("---\n--- stack grows %s\n", (final_sp > initial_sp) ? "up" : "down");
   output->concatf("--- getStackPointer()   0x%08x\n---\n", getStackPointer());
 
@@ -655,18 +715,21 @@ void StaticHub::printDebug(StringBuilder* output) {
 
 void StaticHub::print_type_sizes(void) {
   StringBuilder temp("---< Type sizes >-----------------------------\n");
-  temp.concatf("Elemental structures:\n");
-  temp.concatf("\tStringBuilder         %d\n", sizeof(StringBuilder));
-  temp.concatf("\tLinkedList<void*>     %d\n", sizeof(LinkedList<void*>));
-  temp.concatf("\tPriorityQueue<void*>   %d\n", sizeof(PriorityQueue<void*>));
+  temp.concatf(" Elemental structures:\n\t StringBuilder         %d\n", sizeof(StringBuilder));
+  temp.concatf("\t LinkedList<void*>     %d\n", sizeof(LinkedList<void*>));
+  temp.concatf("\t PriorityQueue<void*>   %d\n", sizeof(PriorityQueue<void*>));
 
-  temp.concatf(" Core singletons:\n");
-  temp.concatf("\t StaticHub             %d\n", sizeof(StaticHub));
+  temp.concatf(" i2c machinary:\n\t I2CQueuedOperation    %d\n", sizeof(I2CQueuedOperation));
+  temp.concatf("\t I2CDevice (Registers) %d\n", sizeof(I2CDeviceWithRegisters));
+  temp.concatf("\t I2CDevice             %d\n", sizeof(I2CDevice));
+  temp.concatf("\t DeviceRegister        %d\n", sizeof(DeviceRegister));
+
+  temp.concatf(" Core singletons:\n\t StaticHub             %d\n", sizeof(StaticHub));
   temp.concatf("\t Scheduler             %d\n", sizeof(Scheduler));
   temp.concatf("\t EventManager          %d\n", sizeof(EventManager));
+  temp.concatf("\t I2CAdapter            %d\n", sizeof(I2CAdapter));
 
-  temp.concatf(" Messaging components:\n");
-  temp.concatf("\t ManuvrEvent      %d\n", sizeof(ManuvrEvent));
+  temp.concatf(" Messaging components:\n\t ManuvrEvent      %d\n", sizeof(ManuvrEvent));
   temp.concatf("\t ManuvrMsg        %d\n", sizeof(ManuvrMsg));
   temp.concatf("\t Argument              %d\n", sizeof(Argument));
   temp.concatf("\t SchedulerItem         %d\n", sizeof(ScheduleItem));
@@ -678,8 +741,8 @@ void StaticHub::print_type_sizes(void) {
 
 
 
-void StaticHub::procDirectDebugInstruction(StringBuilder *input) {
-  char* str = input->position(0);
+void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
+  char *str = (char *) input->string();
   char c = *(str);
   uint8_t temp_byte = 0;        // Many commands here take a single integer argument.
   if (*(str) != 0) {
@@ -693,12 +756,14 @@ void StaticHub::procDirectDebugInstruction(StringBuilder *input) {
     case 'B':
       if (temp_byte == 128) {
         EventManager::raiseEvent(MANUVR_MSG_SYS_BOOTLOADER, NULL);
+        break;
       }
       local_log.concatf("Will only jump to bootloader if the number '128' follows the command.\n");
       break;
     case 'b':
       if (temp_byte == 128) {
         EventManager::raiseEvent(MANUVR_MSG_SYS_REBOOT, NULL);
+        break;
       }
       local_log.concatf("Will only reboot if the number '128' follows the command.\n");
       break;
@@ -741,7 +806,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder *input) {
           EventManager::raiseEvent(MANUVR_MSG_LEGEND_MESSAGES, NULL);
           break;
         default:
-          local_log.concatf("Need a number to ID the dev.\n");
           break;
       }
       break;
@@ -834,7 +898,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder *input) {
       }
       break;
 
-  
+
     case 'v':           // Set log verbosity.
       parse_mule.concat(str);
       local_log.concatf("parse_mule split (%s) into %d positions. \n", str, parse_mule.split(" "));
@@ -853,15 +917,15 @@ void StaticHub::procDirectDebugInstruction(StringBuilder *input) {
       }
       raiseEvent(event);
       break;
-    
-    case 'z':
-      input->cull(1);
-      ((I2CAdapter*) i2c)->procDirectDebugInstruction(input);
-      break;
 
     case 'm':
       input->cull(1);
       mgc3130->procDirectDebugInstruction(input);
+      break;
+
+    case 'z':
+      input->cull(1);
+      ((I2CAdapter*) i2c)->procDirectDebugInstruction(input);
       break;
 
     default:
