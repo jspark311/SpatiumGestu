@@ -13,41 +13,46 @@ SHELL          = /bin/sh
 WHO_I_AM       = $(shell whoami)
 WHERE_I_AM     = $(shell pwd)
 HOME_DIRECTORY = /home/$(WHO_I_AM)
-ARDUINO_PATH   = $(HOME_DIRECTORY)/arduino
-TEENSY_PATH    = $(ARDUINO_PATH)/hardware/teensy/avr/
+MPEIDE_PATH    = $(HOME_DIRECTORY)/mpide-0023-linux64-20140821
+PLATFORM_PATH  = $(MPEIDE_PATH)/hardware/pic32/
 
 
 # Variables for the firmware compilation...
 ###########################################################################
 FIRMWARE_NAME      = spatiumgenstu
 
-TOOLCHAIN          = $(ARDUINO_PATH)/hardware/tools/arm
-C_CROSS            = $(TOOLCHAIN)/bin/arm-none-eabi-gcc
-CPP_CROSS          = $(TOOLCHAIN)/bin/arm-none-eabi-g++
-OBJCOPY            = $(TOOLCHAIN)/bin/arm-none-eabi-objcopy
-SZ_CROSS           = $(TOOLCHAIN)/bin/arm-none-eabi-size
-TEENSY_LOADER_PATH = $(ARDUINO_PATH)/hardware/tools/teensy_loader_cli
+TOOLCHAIN          = $(MPEIDE_PATH)/hardware/pic32/compiler/pic32-tools/bin
+C_CROSS            = $(TOOLCHAIN)/pic32-gcc
+CPP_CROSS          = $(TOOLCHAIN)/pic32-g++
+AR_CROSS           = $(TOOLCHAIN)/pic32-ar
+OBJCOPY            = $(TOOLCHAIN)/pic32-objcopy
+SZ_CROSS           = $(TOOLCHAIN)/pic32-size
+BIN2HEX_CROSS      = $(TOOLCHAIN)/pic32-bin2hex
+TEENSY_LOADER_PATH = $(MPEIDE_PATH)/hardware/tools/teensy_loader_cli
 
 OUTPUT_PATH        = build
 
 
-MCU                = cortex-m4
-CPU_SPEED          = 48000000
+MCU                = 32MX250F128D
+CPU_SPEED          = 48000000L
 OPTIMIZATION       = -Os
 C_STANDARD         = gnu99
 CPP_STANDARD       = gnu++11
 FORMAT             = ihex
+BOARD_DEF          = _BOARD_FUBARINO_MINI_
 
 
 ###########################################################################
 # Source files, includes, and linker directives...
 ###########################################################################
 INCLUDES     = -iquote. -iquotesrc/ 
-INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
-INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
+INCLUDES    += -I./ -I$(PLATFORM_PATH)/libraries -I$(MPEIDE_PATH)/libraries
+INCLUDES    += -I$(PLATFORM_PATH)/cores/pic32
 INCLUDES    += -I./
+INCLUDES    += -I$(PLATFORM_PATH)/variants/Fubarino_Mini
+INCLUDES    += -I$(PLATFORM_PATH)/libraries/Wire/utility/
 
-LD_FILE     = $(TEENSY_PATH)cores/teensy3/mk20dx128.ld
+LD_FILE     = $(PLATFORM_PATH)/cores/pic32/chipKIT-application-32MX250F128.ld
 
 # Libraries to link
 LIBS = -lm -lstdc++ -larm_cortexM4l_math -lc
@@ -57,19 +62,16 @@ CFLAGS = $(INCLUDES)
 CFLAGS += $(OPTIMIZATION) -Wall
 
 CFLAGS += -DF_CPU=$(CPU_SPEED)
-CFLAGS += -mcpu=$(MCU)  -mthumb -D__MK20DX128__
+CFLAGS += -D$(BOARD_DEF) 
+CFLAGS += -mprocessor=$(MCU) 
 
-CFLAGS += -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections
-CFLAGS += -mlittle-endian -felide-constructors
-CFLAGS += -mfloat-abi=soft
+CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -mno-smart-io -G1024 -g -mdebugger -Wcast-align -fno-short-double
 
-CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
-
-CFLAGS += -MMD -DUSB_VID=null -DUSB_PID=null
+CFLAGS += -DMPIDEVER=16777998 -DMPIDE=23 -DARDUINO=23
 
 
-CPP_FLAGS = -std=$(CPP_STANDARD)
-CPP_FLAGS += -DUSB_SERIAL -DLAYOUT_US_ENGLISH
+CPP_FLAGS = -fno-exceptions -D_USE_USB_FOR_SERIAL_
 
 
 
@@ -116,60 +118,48 @@ all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 lib:
 	mkdir -p $(OUTPUT_PATH)
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)libraries/Time/DateStrings.cpp -o $(OUTPUT_PATH)/DateStrings.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)libraries/Time/Time.cpp -o $(OUTPUT_PATH)/Time.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)libraries/SPI/SPI.cpp -o $(OUTPUT_PATH)/SPI.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)libraries/i2c_t3/i2c_t3.cpp -o $(OUTPUT_PATH)/SPI.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)libraries/Encoder/Encoder.cpp -o $(OUTPUT_PATH)/Encoder.cpp.o 
+	$(CPP_CROSS) -O2  -g1  -c  -Wa,--gdwarf-2 $(CFLAGS) -DMPIDEVER=16777998  -DMPIDE=23   -D_USE_USB_FOR_SERIAL_   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/variants/Fubarino_Mini    $(PLATFORM_PATH)/cores/pic32/pic32_software_reset.S  -o  $(OUTPUT_PATH)/pic32_software_reset.S.o
+	$(CPP_CROSS) -O2  -g1  -c  -Wa,--gdwarf-2 $(CFLAGS) -DMPIDEVER=16777998  -DMPIDE=23   -D_USE_USB_FOR_SERIAL_   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/variants/Fubarino_Mini    $(PLATFORM_PATH)/cores/pic32/cpp-startup.S  -o  $(OUTPUT_PATH)/cpp-startup.S.o
+	$(CPP_CROSS) -O2  -g1  -c  -Wa,--gdwarf-2 $(CFLAGS) -DMPIDEVER=16777998  -DMPIDE=23   -D_USE_USB_FOR_SERIAL_   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/variants/Fubarino_Mini    $(PLATFORM_PATH)/cores/pic32/vector_table.S  -o $(OUTPUT_PATH)/vector_table.S.o
+	$(CPP_CROSS) -O2  -g1  -c  -Wa,--gdwarf-2 $(CFLAGS) -DMPIDEVER=16777998  -DMPIDE=23   -D_USE_USB_FOR_SERIAL_   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/variants/Fubarino_Mini    $(PLATFORM_PATH)/cores/pic32/crti.S  -o  $(OUTPUT_PATH)/crti.S.o
+	$(CPP_CROSS) -O2  -g1  -c  -Wa,--gdwarf-2 $(CFLAGS) -DMPIDEVER=16777998  -DMPIDE=23   -D_USE_USB_FOR_SERIAL_   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32   -I/home/ian/mpide-0023-linux64-20140821/hardware/pic32/variants/Fubarino_Mini    $(PLATFORM_PATH)/cores/pic32/crtn.S  -o  $(OUTPUT_PATH)/crtn.S.o
 	
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_dev.c -o $(OUTPUT_PATH)/usb_dev.c.o
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_seremu.c -o $(OUTPUT_PATH)/usb_seremu.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/keylayouts.c -o $(OUTPUT_PATH)/keylayouts.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial2.c -o $(OUTPUT_PATH)/serial2.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/analog.c -o $(OUTPUT_PATH)/analog.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_serial.c -o $(OUTPUT_PATH)/usb_serial.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_desc.c -o $(OUTPUT_PATH)/usb_desc.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/eeprom.c -o $(OUTPUT_PATH)/eeprom.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_mem.c -o $(OUTPUT_PATH)/usb_mem.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial1.c -o $(OUTPUT_PATH)/serial1.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/math_helper.c -o $(OUTPUT_PATH)/math_helper.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial3.c -o $(OUTPUT_PATH)/serial3.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/pins_teensy.c -o $(OUTPUT_PATH)/pins_teensy.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/mk20dx128.c -o $(OUTPUT_PATH)/mk20dx128.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/touch.c -o $(OUTPUT_PATH)/touch.c.o 
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/nonstd.c -o $(OUTPUT_PATH)/nonstd.c.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/Print.cpp -o $(OUTPUT_PATH)/Print.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/DMAChannel.cpp -o $(OUTPUT_PATH)/DMAChannel.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/yield.cpp -o $(OUTPUT_PATH)/yield.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/WString.cpp -o $(OUTPUT_PATH)/WString.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/WMath.cpp -o $(OUTPUT_PATH)/WMath.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_inst.cpp -o $(OUTPUT_PATH)/usb_inst.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/Tone.cpp -o $(OUTPUT_PATH)/Tone.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/Stream.cpp -o $(OUTPUT_PATH)/Stream.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/avr_emulation.cpp -o $(OUTPUT_PATH)/avr_emulation.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/new.cpp -o $(OUTPUT_PATH)/new.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/HardwareSerial1.cpp -o $(OUTPUT_PATH)/HardwareSerial1.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/HardwareSerial2.cpp -o $(OUTPUT_PATH)/HardwareSerial2.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/HardwareSerial3.cpp -o $(OUTPUT_PATH)/HardwareSerial3.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/main.cpp -o $(OUTPUT_PATH)/main.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/IntervalTimer.cpp -o $(OUTPUT_PATH)/IntervalTimer.cpp.o 
-	$(CPP_CROSS) -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/AudioStream.cpp -o $(OUTPUT_PATH)/AudioStream.cpp.o 
+	
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/libraries/Wire/Wire.cpp  -o         $(OUTPUT_PATH)/Wire.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/main.cpp  -o            $(OUTPUT_PATH)/main.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/WString.cpp  -o         $(OUTPUT_PATH)/WString.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/Tone.cpp  -o            $(OUTPUT_PATH)/Tone.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/Print.cpp  -o           $(OUTPUT_PATH)/Print.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/HardwareSerial.cpp  -o  $(OUTPUT_PATH)/HardwareSerial.cpp.o
+	$(CPP_CROSS) -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/WMath.cpp  -o           $(OUTPUT_PATH)/WMath.cpp.o
 
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/WMath.cpp  -o           $(OUTPUT_PATH)/WMath.cpp.o
 
-testbench:
-	g++ -static -g -o testbench src/tests/test-bench.cpp src/tests/StaticHub.cpp $(MANUVROS_SRCS) $(SENSOR_SRCS) $(I2C_DRIVERS) $(I2C_VIAM_SONUS_DRIVERS) -std=$(CPP_STANDARD) $(TARGET_WIDTH) -lstdc++ -lm -Isrc/ -DTEST_BENCH -D_GNU_SOURCE -O0
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/HardwareSerial_cdcacm.c  -o  $(OUTPUT_PATH)/HardwareSerial_cdcacm.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/wiring_shift.c        -o  $(OUTPUT_PATH)/wiring_shift.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/HardwareSerial_usb.c  -o  $(OUTPUT_PATH)/HardwareSerial_usb.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/wiring_pulse.c        -o  $(OUTPUT_PATH)/wiring_pulse.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/wiring_digital.c      -o  $(OUTPUT_PATH)/wiring_digital.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/WInterrupts.c         -o  $(OUTPUT_PATH)/WInterrupts.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/wiring.c              -o  $(OUTPUT_PATH)/wiring.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/pins_arduino.c        -o  $(OUTPUT_PATH)/pins_arduino.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/task_manager.c        -o  $(OUTPUT_PATH)/task_manager.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/exceptions.c          -o  $(OUTPUT_PATH)/exceptions.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/WSystem.c             -o  $(OUTPUT_PATH)/WSystem.c.o
+	$(C_CROSS)   -O2 -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/wiring_analog.c       -o  $(OUTPUT_PATH)/wiring_analog.c.o
 
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 	$(shell mkdir $(OUTPUT_PATH))
 
 	$(CPP_CROSS) -c $(CFLAGS) $(SRCS)
-	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/*.o *.o -L$(OUTPUT_PATH) $(LIBS)
+	$(AR_CROSS) rcs $(OUTPUT_PATH)/core.a $(OUTPUT_PATH)/*.o *.o 
+	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -mdebugger -mno-peripheral-libs -nostartfiles -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf c -L$(OUTPUT_PATH) $(LIBS) -T$(LD_FILE) -T/home/ian/mpide-0023-linux64-20140821/hardware/pic32/cores/pic32/chipKIT-application-COMMON.ld
 
 	@echo
 	@echo $(MSG_FLASH) $@
 	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep 
-	$(OBJCOPY) -O $(FORMAT) -R .eeprom -R .fuse -R .lock -R .signature $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).hex
+	$(BIN2HEX_CROSS) -a $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 
 
@@ -192,11 +182,4 @@ doc:
 
 stats:
 	find ./src -type f \( -name \*.cpp -o -name \*.h \) -exec wc -l {} +
-
-
-checkin: fullclean
-	git push
-
-checkout:
-	git pull
 
