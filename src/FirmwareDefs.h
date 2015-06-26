@@ -33,6 +33,10 @@ This is one of the files that the application author is required to provide. Thi
 /* Codes that are specific to Spatium Gestu */
 
 
+inline void sei() {};
+inline void cli() {};
+
+
 
 
 #ifdef __cplusplus

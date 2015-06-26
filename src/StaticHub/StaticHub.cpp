@@ -28,9 +28,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <ManuvrOS/EventManager.h>
 #include <ManuvrOS/XenoSession/XenoSession.h>
 
-#include <Time/Time.h>
+//#include <Time/Time.h>
+#include <sys/time.h>
 #include <unistd.h>
 
+//#include <Audio/Audio.h>
 
 #include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
 
@@ -329,14 +331,15 @@ void StaticHub::off_class_interrupts(bool enable) {
 
 
 volatile void jumpToBootloader(void) {
-  _reboot_Teensyduino_();
+  #if defined(__MK20DX256__) | defined(__MK20DX128__)
+    _reboot_Teensyduino_();
+  #endif
 }
 
 
 volatile void reboot(void) {
   #if defined(__MK20DX256__)
     *((uint32_t *)0xE000ED0C) = 0x5FA0004;
-    //_restart_Teensyduino_();
   #elif defined(__MK20DX128__)
     *((uint32_t *)0xE000ED0C) = 0x5FA0004;
   #endif
