@@ -28,8 +28,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <ManuvrOS/EventManager.h>
 #include <ManuvrOS/XenoSession/XenoSession.h>
 
-//#include <Time/Time.h>
-#include <sys/time.h>
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+  #include <Time/Time.h>
+#else
+  #include <sys/time.h>
+#endif  
+  
 #include <unistd.h>
 
 //#include <Audio/Audio.h>

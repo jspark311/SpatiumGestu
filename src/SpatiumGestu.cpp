@@ -8,7 +8,6 @@
 
 #define HOST_BAUD_RATE  115200
 
-//Teensy3 IntervalTimer timer0;               // Scheduler
 
 StaticHub*    sh            = NULL;
 Scheduler*    scheduler     = NULL;
@@ -17,11 +16,16 @@ EventManager* event_manager = NULL;
 
 void blink_led() {  digitalWrite(13, !digitalRead(13));  }
 
-//void timerCallbackScheduler() {  if (scheduler) scheduler->advanceScheduler(); }
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+IntervalTimer timer0;               // Scheduler
+void timerCallbackScheduler() {  if (scheduler) scheduler->advanceScheduler(); }
+
+#else
 uint32_t timerCallbackScheduler(uint32_t currentTime) {  
   if (scheduler) scheduler->advanceScheduler(); 
   return (currentTime + (CORE_TICK_RATE * 1));
 }
+#endif
 
 
 void setup() {
@@ -34,9 +38,11 @@ void setup() {
   scheduler     = sh->fetchScheduler();
 
   scheduler->createSchedule(100, -1, false, blink_led);
-
-  //timer0.begin(timerCallbackScheduler, 1000);   // Turn on the periodic interrupts...
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+  timer0.begin(timerCallbackScheduler, 1000);   // Turn on the periodic interrupts...
+#else
   attachCoreTimerService(timerCallbackScheduler);
+#endif
   sei();
 }
 
