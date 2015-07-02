@@ -1,0 +1,168 @@
+###########################################################################
+# Makefile for Spatium Gestu
+# Author: J. Ian Lindsay
+# Date:   2015.06.20
+#
+#
+###########################################################################
+
+
+# Environmental awareness...
+###########################################################################
+SHELL          = /bin/sh
+WHO_I_AM       = $(shell whoami)
+WHERE_I_AM     = $(shell pwd)
+HOME_DIRECTORY = /home/$(WHO_I_AM)
+MPEIDE_PATH    = $(HOME_DIRECTORY)/mpide-0023-linux64-20140821
+PLATFORM_PATH  = $(MPEIDE_PATH)/hardware/pic32/
+
+
+# Variables for the firmware compilation...
+###########################################################################
+FIRMWARE_NAME      = spatiumgestu
+
+TOOLCHAIN          = $(MPEIDE_PATH)/hardware/pic32/compiler/pic32-tools/bin
+C_CROSS            = $(TOOLCHAIN)/pic32-gcc
+CPP_CROSS          = $(TOOLCHAIN)/pic32-g++
+AR_CROSS           = $(TOOLCHAIN)/pic32-ar
+OBJCOPY            = $(TOOLCHAIN)/pic32-objcopy
+SZ_CROSS           = $(TOOLCHAIN)/pic32-size
+BIN2HEX_CROSS      = $(TOOLCHAIN)/pic32-bin2hex
+LOADER_PATH        = $(MPEIDE_PATH)/hardware/tools/avrdude
+
+OUTPUT_PATH        = build
+
+
+MCU                = 32MX250F128D
+CPU_SPEED          = 48000000L
+OPTIMIZATION       = -Os
+C_STANDARD         = gnu99
+FORMAT             = ihex
+BOARD_DEF          = _BOARD_FUBARINO_MINI_
+
+
+###########################################################################
+# Source files, includes, and linker directives...
+###########################################################################
+INCLUDES     = -iquote. -iquotesrc/ 
+INCLUDES    += -I./ -I$(PLATFORM_PATH)/libraries -I$(MPEIDE_PATH)/libraries
+INCLUDES    += -I$(PLATFORM_PATH)/cores/pic32
+INCLUDES    += -I./
+INCLUDES    += -I$(PLATFORM_PATH)/libraries/Wire/utility/
+INCLUDES    += -I$(PLATFORM_PATH)/variants/Fubarino_Mini/
+
+
+LD_FILE     = $(PLATFORM_PATH)/cores/pic32/chipKIT-application-32MX250F128.ld
+
+# Libraries to link
+LIBS = -lm 
+
+# Wrap the include paths into the flags...
+CFLAGS = $(INCLUDES)
+CFLAGS += $(OPTIMIZATION) -Wall
+
+CFLAGS += -DF_CPU=$(CPU_SPEED)
+CFLAGS += -D$(BOARD_DEF) 
+CFLAGS += -mprocessor=$(MCU) 
+
+CFLAGS += -mno-smart-io -ffunction-sections -fdata-sections
+CFLAGS += -G1024 -fno-short-double -Wcast-align 
+
+CFLAGS += -DMPIDEVER=16777998 -DMPIDE=23 -DARDUINO=23 -D_USE_USB_FOR_SERIAL_
+
+
+CPP_FLAGS = -fno-exceptions $(CFLAGS)
+
+
+
+###########################################################################
+# Are we on a 64-bit system? If so, we'll need to specify
+#   that we want a 32-bit build...
+# Thanks, estabroo...
+# http://www.linuxquestions.org/questions/programming-9/how-can-make-makefile-detect-64-bit-os-679513/
+###########################################################################
+LBITS = $(shell getconf LONG_BIT)
+ifeq ($(LBITS),64)
+  TARGET_WIDTH = -m32
+else
+  TARGET_WIDTH =
+endif
+
+
+###########################################################################
+# Source file definitions...
+###########################################################################
+
+
+PLATFORM_CPP_SRC  = $(PLATFORM_PATH)/libraries/Wire/Wire.cpp $(PLATFORM_PATH)/cores/pic32/main.cpp
+PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WString.cpp $(PLATFORM_PATH)/cores/pic32/Tone.cpp
+PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/Print.cpp $(PLATFORM_PATH)/cores/pic32/HardwareSerial.cpp
+PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WMath.cpp
+
+
+
+
+MANUVROS_SRCS  = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
+MANUVROS_SRCS += src/ManuvrOS/Drivers/i2c-adapter/*.cpp src/ManuvrOS/Drivers/MGC3130/*.cpp
+
+SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS)
+
+
+
+###########################################################################
+# Rules for building the firmware follow...
+###########################################################################
+
+.PHONY: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+
+
+all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+	$(SZ_CROSS) $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+
+
+lib:
+	$(shell mkdir $(OUTPUT_PATH))
+	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/pic32_software_reset.S  -o  $(OUTPUT_PATH)/pic32_software_reset.S.o
+	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/cpp-startup.S  -o  $(OUTPUT_PATH)/cpp-startup.S.o
+	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/vector_table.S  -o $(OUTPUT_PATH)/vector_table.S.o
+	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/crti.S  -o  $(OUTPUT_PATH)/crti.S.o
+	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/crtn.S  -o  $(OUTPUT_PATH)/crtn.S.o
+
+	$(C_CROSS)   -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/*.c $(PLATFORM_PATH)/variants/Fubarino_Mini/*.c
+	$(CPP_CROSS) -c $(CPP_FLAGS) $(PLATFORM_CPP_SRC)
+	mv *.o $(OUTPUT_PATH)
+	$(AR_CROSS) rcvs $(OUTPUT_PATH)/core.a $(OUTPUT_PATH)/*.o
+
+
+$(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
+	$(CPP_CROSS) -c $(CPP_FLAGS) $(SRCS)
+	$(AR_CROSS) rvs $(OUTPUT_PATH)/core.a *.o
+	$(CPP_CROSS)  -Os  -Wl,--gc-sections  -mdebugger  -mno-peripheral-libs  -nostartfiles  -mprocessor=32MX250F128D -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/core.a -L. $(LIBS) -T $(LD_FILE) -T$(PLATFORM_PATH)/cores/pic32/chipKIT-application-COMMON.ld
+
+	@echo                             
+	@echo $(MSG_FLASH) $@
+	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep 
+	$(BIN2HEX_CROSS) -a $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+
+
+
+program: $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+	$(LOADER_PATH) -p$(MCU) -C$(MPEIDE_PATH)/hardware/tools/avrdude.conf -cstk500v2 -v -b115200 -D -Uflash:w:$(OUTPUT_PATH)/$(FIRMWARE_NAME).hex:i
+
+
+fullclean:
+	rm -f *.d *.o *.su *~ testbench
+	rm -rf doc/doxygen/*
+	rm -rf $(OUTPUT_PATH)
+
+clean:
+	rm -f *.d *.o *.su *~ testbench
+	rm -rf $(OUTPUT_PATH)
+
+doc:
+	mkdir -p doc/doxygen/
+	doxygen Doxyfile
+
+stats:
+	find ./src -type f \( -name \*.cpp -o -name \*.h \) -exec wc -l {} +
+

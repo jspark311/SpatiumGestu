@@ -730,26 +730,6 @@ void StaticHub::printDebug(StringBuilder* output) {
 
 void StaticHub::print_type_sizes(void) {
   StringBuilder temp("---< Type sizes >-----------------------------\n");
-  temp.concatf(" Elemental structures:\n\t StringBuilder         %d\n", sizeof(StringBuilder));
-  temp.concatf("\t LinkedList<void*>     %d\n", sizeof(LinkedList<void*>));
-  temp.concatf("\t PriorityQueue<void*>   %d\n", sizeof(PriorityQueue<void*>));
-
-  temp.concatf(" i2c machinary:\n\t I2CQueuedOperation    %d\n", sizeof(I2CQueuedOperation));
-  temp.concatf("\t I2CDevice (Registers) %d\n", sizeof(I2CDeviceWithRegisters));
-  temp.concatf("\t I2CDevice             %d\n", sizeof(I2CDevice));
-  temp.concatf("\t DeviceRegister        %d\n", sizeof(DeviceRegister));
-
-  temp.concatf(" Core singletons:\n\t StaticHub             %d\n", sizeof(StaticHub));
-  temp.concatf("\t Scheduler             %d\n", sizeof(Scheduler));
-  temp.concatf("\t EventManager          %d\n", sizeof(EventManager));
-  temp.concatf("\t I2CAdapter            %d\n", sizeof(I2CAdapter));
-
-  temp.concatf(" Messaging components:\n\t ManuvrEvent      %d\n", sizeof(ManuvrEvent));
-  temp.concatf("\t ManuvrMsg        %d\n", sizeof(ManuvrMsg));
-  temp.concatf("\t Argument              %d\n", sizeof(Argument));
-  temp.concatf("\t SchedulerItem         %d\n", sizeof(ScheduleItem));
-  temp.concatf("\t TaskProfilerData      %d\n", sizeof(TaskProfilerData));
-
   StaticHub::log(&temp);
 }
 

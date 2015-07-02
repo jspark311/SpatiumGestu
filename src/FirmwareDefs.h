@@ -32,10 +32,11 @@ This is one of the files that the application author is required to provide. Thi
 
 /* Codes that are specific to Spatium Gestu */
 
-
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+#else
 inline void sei() {};
 inline void cli() {};
-
+#endif
 
 
 
