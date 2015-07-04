@@ -778,10 +778,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       }
       else if (temp_byte == 1) {
         // This is a test of black magic inverse-square-root efficiency.
-        uint32_t a = 0;
-        uint32_t b = 0;
-        uint32_t c = 0;
-        int      d = 0;
         int      r = 0;
           long time_var2 = micros();
           local_log.concat("signed_saturate_rshift() \t  10000 \t ");
@@ -789,7 +785,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
             // No idea how to properly use this fxn. Doesn't matter yet...
             r += signed_saturate_rshift((int32_t) r, 3, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
 
           time_var2 = micros();
@@ -797,7 +793,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r += signed_multiply_32x16b(x, 14);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
 
           time_var2 = micros();
@@ -805,7 +801,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r += signed_multiply_32x16t(x, 14);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
 
           time_var2 = micros();
@@ -813,7 +809,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r += multiply_32x32_rshift32(x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -821,7 +817,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r += multiply_32x32_rshift32_rounded(x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -829,7 +825,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_accumulate_32x32_rshift32_rounded(r, x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -837,7 +833,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_subtract_32x32_rshift32_rounded(r, x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -845,7 +841,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = pack_16t_16t(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -853,7 +849,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = pack_16t_16b(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -861,7 +857,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = pack_16b_16b(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -869,7 +865,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = pack_16x16(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -877,7 +873,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = signed_add_16_and_16(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -885,7 +881,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = signed_multiply_accumulate_32x16b(r, x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -893,7 +889,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = signed_multiply_accumulate_32x16t(r, x, 2);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -901,7 +897,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = logical_and(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -909,7 +905,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_16tx16t_add_16bx16b(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
 
@@ -919,7 +915,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r += multiply_16tx16b_add_16bx16t(2, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -927,7 +923,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_16bx16b(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -935,7 +931,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_16bx16t(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -943,7 +939,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_16tx16b(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -951,7 +947,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = multiply_16tx16t(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
           time_var2 = micros();
@@ -959,7 +955,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
           for (int x = 0; x < 10000; x++) {
             r = substract_32_saturate(r, x);
           }
-          local_log.concatf("0x%08x \t %u microseconds\n", r, (unsigned long) (micros() - time_var2));
+          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
           r = 0;
           
 
