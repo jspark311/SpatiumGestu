@@ -22,7 +22,7 @@ This is one of the files that the application author is required to provide. Thi
 *   determines the effective maximum packet size for this device.
 */
 #define PROTOCOL_MTU              2000                  // See MTU notes above....
-#define VERSION_STRING            "0.1.1"               // We should be able to communicate version so broken behavior can be isolated.
+#define VERSION_STRING            "0.1.3"               // We should be able to communicate version so broken behavior can be isolated.
 #define HW_VERSION_STRING         "1"                   // First revision of the hardware.
 #define IDENTITY_STRING           "Spatium Gestu"       // Might also be a hash....
 //#define EXTENDED_DETAIL_STRING    "RasPiBuild"           // Optional. User-defined.

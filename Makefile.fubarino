@@ -70,6 +70,7 @@ CFLAGS += -G1024 -fno-short-double # -Wcast-align
 
 CFLAGS += -DMPIDEVER=16777998 -DMPIDE=23 -DARDUINO=23 -D_USE_USB_FOR_SERIAL_
 
+CFLAGS += -D__MANUVR_CONSOLE_SUPPORT
 
 CPP_FLAGS = -fno-exceptions $(CFLAGS) 
 
@@ -103,7 +104,7 @@ PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WMath.cpp
 
 
 MANUVROS_SRCS  = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
-MANUVROS_SRCS += src/ManuvrOS/Drivers/i2c-adapter/*.cpp src/ManuvrOS/Drivers/MGC3130/*.cpp
+MANUVROS_SRCS += src/ManuvrOS/Drivers/i2c-adapter/*.cpp src/ManuvrOS/Drivers/MGC3130/*.cpp src/ManuvrOS/Drivers/ManuvrAudio/*.cpp
 
 SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS)
 
@@ -147,7 +148,7 @@ $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 
 
 program: $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
-	$(LOADER_PATH) -p$(MCU) -C$(MPEIDE_PATH)/hardware/tools/avrdude.conf -cstk500v2 -v -b115200 -D -Uflash:w:$(OUTPUT_PATH)/$(FIRMWARE_NAME).hex:i
+	$(LOADER_PATH) -p$(MCU) -P/dev/ttyACM1 -C$(MPEIDE_PATH)/hardware/tools/avrdude.conf -cstk500v2 -v -b115200 -D -Uflash:w:$(OUTPUT_PATH)/$(FIRMWARE_NAME).hex:i
 
 
 fullclean:

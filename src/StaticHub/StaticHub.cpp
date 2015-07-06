@@ -30,6 +30,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
   #include <Time/Time.h>
+#elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__) | defined(__PIC32MZ__)
+  #include <wiring.h>
 #else
   #include <sys/time.h>
 #endif  
@@ -340,6 +342,8 @@ void StaticHub::off_class_interrupts(bool enable) {
 volatile void jumpToBootloader(void) {
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
     _reboot_Teensyduino_();
+  #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
+    executeSoftReset();
   #endif
 }
 
@@ -349,6 +353,8 @@ volatile void reboot(void) {
     *((uint32_t *)0xE000ED0C) = 0x5FA0004;
   #elif defined(__MK20DX128__)
     *((uint32_t *)0xE000ED0C) = 0x5FA0004;
+  #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
+    executeSoftReset(ENTER_BOOTLOADER_ON_BOOT);
   #endif
 }
 
@@ -378,9 +384,6 @@ StaticHub bootstrap and setup fxns. This code is only ever called to initiallize
 *   we will need and let them sit dormant until needed.
 */
 void StaticHub::initSchedules(void) {
-  pid_profiler_report = __scheduler.createSchedule(10000,  -1, false, &__scheduler, new ManuvrEvent(MANUVR_MSG_SCHED_DUMP_META));
-  __scheduler.disableSchedule(pid_profiler_report);
-
   // This schedule marches the data into the USB VCP at a throttled rate.
   pid_log_moderator = __scheduler.createSchedule(5,  -1, false, stdout_funnel);
   __scheduler.delaySchedule(pid_log_moderator, 1000);
@@ -395,7 +398,7 @@ void StaticHub::init_RNG(void) volatile {
   for (uint8_t i = 0; i < STATICHUB_RNG_CARRY_CAPACITY; i++) next_random_int[i] = 0;
   
   #ifdef ARDUINO
-    randomSeed(analogRead(0));
+    //randomSeed(analogRead(0));
   #endif
 }
 
@@ -464,19 +467,20 @@ int8_t StaticHub::bootstrap() {
   event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
 
   // Setup the first i2c adapter and Subscribe it to EventManager.
-  i2c = new I2CAdapter(0);
-  event_manager.subscribe((EventReceiver*) i2c);
-
+  i2c     = new I2CAdapter(0);
   mgc3130 = new MGC3130(16, 17);
+  audio   = new ManuvrAudio();
 
-  ((I2CAdapter*) i2c)->addSlaveDevice(mgc3130);
-  event_manager.subscribe((EventReceiver*) mgc3130);
+//  event_manager.subscribe((EventReceiver*) i2c);
+//  ((I2CAdapter*) i2c)->addSlaveDevice(mgc3130);
+//  event_manager.subscribe((EventReceiver*) mgc3130);
+//  event_manager.subscribe((EventReceiver*) audio);
   
   init_RNG();      // Fire up the RNG...
   initRTC();
   initSchedules();   // We know we will need some schedules...
 
-  mgc3130->init();
+//  mgc3130->init();
 
   ManuvrEvent *boot_completed_ev = EventManager::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
   //boot_completed_ev->priority = EVENT_PRIORITY_HIGHEST;
@@ -766,205 +770,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       local_log.concatf("Will only reboot if the number '128' follows the command.\n");
       break;
 
-    case 'f':  // FPU benchmark
-      if (temp_byte == 0) {
-        float a = 1.001;
-        long time_var2 = millis();
-        for (int i = 0;i < 1000000;i++) {
-          a += 0.01 * sqrtf(a);
-        }
-        local_log.concatf("Running floating-point test...\nTime:      %d ms\n", millis() - time_var2);
-        local_log.concatf("Value:     %.5f\nFPU test concluded.\n", (double) a);
-      }
-      else if (temp_byte == 1) {
-        // This is a test of black magic inverse-square-root efficiency.
-        int      r = 0;
-          long time_var2 = micros();
-          local_log.concat("signed_saturate_rshift() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            // No idea how to properly use this fxn. Doesn't matter yet...
-            r += signed_saturate_rshift((int32_t) r, 3, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-
-          time_var2 = micros();
-          local_log.concat("signed_multiply_32x16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r += signed_multiply_32x16b(x, 14);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-
-          time_var2 = micros();
-          local_log.concat("signed_multiply_32x16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r += signed_multiply_32x16t(x, 14);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-
-          time_var2 = micros();
-          local_log.concat("multiply_32x32_rshift32() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r += multiply_32x32_rshift32(x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_32x32_rshift32_rounded() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r += multiply_32x32_rshift32_rounded(x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_accumulate_32x32_rshift32_rounded() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_accumulate_32x32_rshift32_rounded(r, x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_subtract_32x32_rshift32_rounded() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_subtract_32x32_rshift32_rounded(r, x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("pack_16t_16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = pack_16t_16t(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("pack_16t_16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = pack_16t_16b(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("pack_16b_16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = pack_16b_16b(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("pack_16x16() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = pack_16x16(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("signed_add_16_and_16() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = signed_add_16_and_16(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("signed_multiply_accumulate_32x16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = signed_multiply_accumulate_32x16b(r, x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("signed_multiply_accumulate_32x16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = signed_multiply_accumulate_32x16t(r, x, 2);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("logical_and() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = logical_and(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16tx16t_add_16bx16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_16tx16t_add_16bx16b(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16tx16b_add_16bx16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r += multiply_16tx16b_add_16bx16t(2, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16bx16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_16bx16b(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16bx16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_16bx16t(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16tx16b() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_16tx16b(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("multiply_16tx16t() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = multiply_16tx16t(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-          time_var2 = micros();
-          local_log.concat("substract_32_saturate() \t  10000 \t ");
-          for (int x = 0; x < 10000; x++) {
-            r = substract_32_saturate(r, x);
-          }
-          local_log.concatf("0x%08x \t %u us\n", r, (unsigned long) (micros() - time_var2));
-          r = 0;
-          
-
-          
-          
-        local_log.concat("CPU test concluded.\n\n");
-      }
-      break;
-
     case '6':        // Read so many random integers...
       { // TODO: I don't think the RNG is ever being turned off. Save some power....
         temp_byte = (temp_byte == 0) ? STATICHUB_RNG_CARRY_CAPACITY : temp_byte;
@@ -981,6 +786,7 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       }
       break;
 
+#ifdef __MANUVR_CONSOLE_SUPPORT
 
     case 'u':
       switch (temp_byte) {
@@ -1070,17 +876,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
         //event->addArg(deferred);
         //EventManager::raiseEvent(event);   // Raise an event with a message. No need to clean it up.
       }
-      else {
-        if (__scheduler.scheduleEnabled(pid_profiler_report)) {
-          __scheduler.disableSchedule(pid_profiler_report);
-          local_log.concatf("Scheduler profiler dump disabled.\n");
-        }
-        else {
-          __scheduler.enableSchedule(pid_profiler_report);
-          __scheduler.delaySchedule(pid_profiler_report, 10);   // Run the schedule immediately.
-          local_log.concatf("Scheduler profiler dump enabled.\n");
-        }
-      }
       break;
 
 
@@ -1112,11 +907,16 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       input->cull(1);
       ((I2CAdapter*) i2c)->procDirectDebugInstruction(input);
       break;
+    #endif
+
+    case 'a':
+      input->cull(1);
+      audio->procDirectDebugInstruction(input);
+      break;
 
     default:
       break;
   }
-
   if (local_log.length() > 0) StaticHub::log(&local_log);
   last_user_input.clear();
 }
