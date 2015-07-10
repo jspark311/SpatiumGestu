@@ -55,7 +55,7 @@ void logo_fade() {
 
 
 void setup() {
-  Serial.begin(HOST_BAUD_RATE);   // USB debugging.
+  Serial.begin(HOST_BAUD_RATE);   // USB
   pinMode(PIN_LED1,         OUTPUT);
   pinMode(MANUVR_LOGO_LED,  OUTPUT);
   
@@ -69,7 +69,7 @@ void setup() {
   scheduler->createSchedule(25, -1, false, blink_led);
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
   timer0.begin(timerCallbackScheduler, 1000);   // Turn on the periodic interrupts...
-#else
+#elif defined(_BOARD_FUBARINO_MINI_)
   attachCoreTimerService(timerCallbackScheduler);
 #endif
   sei();

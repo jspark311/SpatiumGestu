@@ -94,22 +94,6 @@ void stdout_funnel() {
 }
 
 
-#ifdef __cplusplus
-  extern "C" {
-    //__attribute__((weak)) omit this as used in _write() in Print.cpp
-  
-    // this function overrides the one of the same name in Print.cpp
-    int _write(int file, char *ptr, int len)
-    {
-        // send chars to zero or more outputs
-        for (int i = 0; i < len; i++)  {
-            Serial.print(ptr[i]);
-        }
-        return 0;
-    }
-  } // end extern "C" section
-#endif
-
 
 /****************************************************************************************************
 * Static initializers                                                                               *
@@ -343,7 +327,7 @@ volatile void jumpToBootloader(void) {
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
     _reboot_Teensyduino_();
   #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
-    executeSoftReset();
+    executeSoftReset(0);
   #endif
 }
 
@@ -386,7 +370,8 @@ StaticHub bootstrap and setup fxns. This code is only ever called to initiallize
 void StaticHub::initSchedules(void) {
   // This schedule marches the data into the USB VCP at a throttled rate.
   pid_log_moderator = __scheduler.createSchedule(5,  -1, false, stdout_funnel);
-  __scheduler.delaySchedule(pid_log_moderator, 1000);
+  __scheduler.delaySchedule(pid_log_moderator, 2500);
+  //__scheduler.disableSchedule(pid_log_moderator);
 }
 
 

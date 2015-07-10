@@ -45,7 +45,7 @@ BOARD_DEF          = _BOARD_FUBARINO_MINI_
 # Source files, includes, and linker directives...
 ###########################################################################
 INCLUDES     = -iquote. -iquotesrc/ 
-INCLUDES    += -I./ -I$(PLATFORM_PATH)/libraries -I$(MPEIDE_PATH)/libraries
+INCLUDES    += -I./ -I$(PLATFORM_PATH)/libraries #-I$(MPEIDE_PATH)/libraries
 INCLUDES    += -I$(PLATFORM_PATH)/cores/pic32
 INCLUDES    += -I./
 INCLUDES    += -I$(PLATFORM_PATH)/libraries/Wire/utility/
@@ -95,10 +95,10 @@ endif
 ###########################################################################
 
 
-PLATFORM_CPP_SRC  = $(PLATFORM_PATH)/libraries/Wire/Wire.cpp $(PLATFORM_PATH)/cores/pic32/main.cpp
+PLATFORM_CPP_SRC  = $(PLATFORM_PATH)/libraries/Wire/*.cpp
 PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WString.cpp $(PLATFORM_PATH)/cores/pic32/Tone.cpp
 PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/Print.cpp $(PLATFORM_PATH)/cores/pic32/HardwareSerial.cpp
-PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WMath.cpp
+PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WMath.cpp $(PLATFORM_PATH)/cores/pic32/main.cpp 
 
 
 
@@ -130,6 +130,8 @@ lib:
 	$(CPP_CROSS) -g1  -c  -Wa,--gdwarf-2 $(CPP_FLAGS)  $(PLATFORM_PATH)/cores/pic32/crtn.S  -o  $(OUTPUT_PATH)/crtn.S.o
 
 	$(C_CROSS)   -c $(CFLAGS) $(PLATFORM_PATH)/cores/pic32/*.c $(PLATFORM_PATH)/variants/Fubarino_Mini/*.c
+	$(C_CROSS)   -c $(CFLAGS) $(PLATFORM_PATH)/libraries/Wire/utility/*.c
+	
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(PLATFORM_CPP_SRC)
 	mv *.o $(OUTPUT_PATH)
 	$(AR_CROSS) rcvs $(OUTPUT_PATH)/core.a $(OUTPUT_PATH)/*.o
