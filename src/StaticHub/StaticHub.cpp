@@ -451,7 +451,11 @@ int8_t StaticHub::bootstrap() {
 
   // Setup the first i2c adapter and Subscribe it to EventManager.
   i2c     = new I2CAdapter(0);
+<<<<<<< HEAD
   //mgc3130 = new MGC3130(16, 17);
+=======
+  mgc3130 = new MGC3130(16, 17);
+>>>>>>> db81e43794f03e8e662d105e57dc4355b98919f8
 
 //  event_manager.subscribe((EventReceiver*) i2c);
 //  ((I2CAdapter*) i2c)->addSlaveDevice(mgc3130);
