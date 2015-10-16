@@ -38,8 +38,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
   
 #include <unistd.h>
 
-//#include <Audio/Audio.h>
-
 #include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
 
 // Externs and prototypes...
@@ -369,8 +367,8 @@ StaticHub bootstrap and setup fxns. This code is only ever called to initiallize
 */
 void StaticHub::initSchedules(void) {
   // This schedule marches the data into the USB VCP at a throttled rate.
-  pid_log_moderator = __scheduler.createSchedule(5,  -1, false, stdout_funnel);
-  __scheduler.delaySchedule(pid_log_moderator, 2500);
+  pid_log_moderator = __scheduler.createSchedule(50,  -1, false, stdout_funnel);
+  //__scheduler.delaySchedule(pid_log_moderator, 5000);
   //__scheduler.disableSchedule(pid_log_moderator);
 }
 
@@ -453,13 +451,11 @@ int8_t StaticHub::bootstrap() {
 
   // Setup the first i2c adapter and Subscribe it to EventManager.
   i2c     = new I2CAdapter(0);
-  mgc3130 = new MGC3130(16, 17);
-  audio   = new ManuvrAudio();
+  //mgc3130 = new MGC3130(16, 17);
 
 //  event_manager.subscribe((EventReceiver*) i2c);
 //  ((I2CAdapter*) i2c)->addSlaveDevice(mgc3130);
 //  event_manager.subscribe((EventReceiver*) mgc3130);
-//  event_manager.subscribe((EventReceiver*) audio);
   
   init_RNG();      // Fire up the RNG...
   initRTC();
@@ -893,11 +889,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       ((I2CAdapter*) i2c)->procDirectDebugInstruction(input);
       break;
     #endif
-
-    case 'a':
-      input->cull(1);
-      audio->procDirectDebugInstruction(input);
-      break;
 
     default:
       break;
