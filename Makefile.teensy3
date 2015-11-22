@@ -32,7 +32,7 @@ OUTPUT_PATH        = build
 
 
 MCU                = cortex-m4
-CPU_SPEED          = 48000000
+CPU_SPEED          = 72000000
 OPTIMIZATION       = -Os
 C_STANDARD         = gnu99
 CPP_STANDARD       = gnu++11
@@ -45,7 +45,7 @@ FORMAT             = ihex
 INCLUDES     = -iquote. -iquotesrc/ 
 INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
-INCLUDES    += -I./
+INCLUDES    += -I./ -Isrc/
 
 LD_FILE     = $(TEENSY_PATH)cores/teensy3/mk20dx128.ld
 
@@ -99,7 +99,10 @@ CPP_FLAGS += $(CFLAGS)
 MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
 I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
 
-SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp src/ManuvrOS/Drivers/ManuvrAudio/*.cpp 
+SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
+
 
 SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS)
 

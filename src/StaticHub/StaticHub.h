@@ -49,7 +49,7 @@ This is the Spatium Gestu version of StaticHub.
   #include <ManuvrOS/Scheduler.h>
   #include <ManuvrOS/EventManager.h>
   #include <StringBuilder/StringBuilder.h>
-  
+
 #ifdef ARDUINO
   #include <Arduino.h>
 #endif
@@ -60,6 +60,8 @@ This is the Spatium Gestu version of StaticHub.
 
 // Forward-declare some things we are going to support....
 class MGC3130;
+class ADP8866;
+class INA219;
 
 /*
 * These are just lables. We don't really ever care about the *actual* integers being defined here. Only
@@ -167,6 +169,7 @@ class StaticHub : public EventReceiver {
     uint32_t rtc_startup_state;
     
     MGC3130* mgc3130;
+    ADP8866* adp8866;
 
     // These fxns do string conversion for integer type-codes, and are only useful for logging.
     const char* getRTCStateString(uint32_t code);
