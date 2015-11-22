@@ -30,9 +30,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 /*
 * Constructor. Takes i2c address as argument.
 */
-ADP8866::ADP8866(uint8_t reset_pin, uint8_t irq_pin, uint8_t addr) : I2CDeviceWithRegisters() {
+ADP8866::ADP8866(uint8_t _reset_pin, uint8_t _irq_pin, uint8_t addr) : I2CDeviceWithRegisters() {
   __class_initializer();
   _dev_addr = addr;
+  pinMode(_irq_pin, INPUT_PULLUP); 
+  pinMode(_reset_pin, OUTPUT);     
+  
+  
   
   init_complete = false;
 //  defineRegister(ADP8866_BANK_A_CURRENT,     (uint8_t) 0x90, true,  false, true);
