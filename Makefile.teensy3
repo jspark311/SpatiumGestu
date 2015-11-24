@@ -32,7 +32,7 @@ OUTPUT_PATH        = build
 
 
 MCU                = cortex-m4
-CPU_SPEED          = 72000000
+CPU_SPEED          = 48000000
 OPTIMIZATION       = -Os
 C_STANDARD         = gnu99
 CPP_STANDARD       = gnu++11
@@ -97,7 +97,10 @@ CPP_FLAGS += $(CFLAGS)
 ###########################################################################
 
 MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
+MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
+
 I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
+I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
 
 SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp

@@ -369,7 +369,7 @@ StaticHub bootstrap and setup fxns. This code is only ever called to initiallize
 */
 void StaticHub::initSchedules(void) {
   // This schedule marches the data into the USB VCP at a throttled rate.
-  pid_log_moderator = __scheduler.createSchedule(50,  -1, false, stdout_funnel);
+  pid_log_moderator = __scheduler.createSchedule(8,  -1, false, stdout_funnel);
   //__scheduler.delaySchedule(pid_log_moderator, 5000);
   //__scheduler.disableSchedule(pid_log_moderator);
 }
@@ -455,11 +455,14 @@ int8_t StaticHub::bootstrap() {
   i2c     = new I2CAdapter(0);
   mgc3130 = new MGC3130(16, 17);
 
+  ina219      = new INA219(0x4A);
   adp8866     = new ADP8866(7, 8, 0x27);
 
-//  event_manager.subscribe((EventReceiver*) i2c);
-//  ((I2CAdapter*) i2c)->addSlaveDevice(mgc3130);
-//  event_manager.subscribe((EventReceiver*) mgc3130);
+  event_manager.subscribe((EventReceiver*) i2c);
+  ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
+  ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
+
+  event_manager.subscribe((EventReceiver*) adp8866);
   
   init_RNG();      // Fire up the RNG...
   initRTC();
@@ -883,9 +886,21 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       raiseEvent(event);
       break;
 
+    case 'p':
+      ina219->sync();
+      break;
+    case 'k':
+      ina219->readSensor();
+      break;
+
     case 'm':
       input->cull(1);
       mgc3130->procDirectDebugInstruction(input);
+      break;
+
+    case 'l':
+      input->cull(1);
+      adp8866->procDirectDebugInstruction(input);
       break;
 
     case 'z':

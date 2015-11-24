@@ -149,6 +149,8 @@ int8_t I2CAdapter::generateStop() {
 
 #elif defined(__MK20DX256__) | defined(__MK20DX128__)
 
+
+
 I2CAdapter::I2CAdapter(uint8_t dev_id) {
   __class_initializer();
   dev = dev_id;
@@ -164,6 +166,7 @@ I2CAdapter::I2CAdapter(uint8_t dev_id) {
   }
   #endif
   else {
+    // Unsupported
   }
   
   for (uint16_t i = 0; i < 128; i++) {
@@ -185,21 +188,96 @@ I2CAdapter::~I2CAdapter() {
 }
 
 
-// TODO: Inline this.
+
 int8_t I2CAdapter::generateStart() {
   if (verbosity > 6) StaticHub::log("I2CAdapter::generateStart()\n");
   if (! bus_online) return -1;
   //Wire1.sendTransmission(I2C_STOP);
   //Wire1.finish(900);   // We allow for 900uS for timeout.
-  
   return 0;
 }
 
-// TODO: Inline this.
+
 int8_t I2CAdapter::generateStop() {
   if (verbosity > 6) StaticHub::log("I2CAdapter::generateStop()\n");
   if (! bus_online) return -1;
   return 0;
+}
+
+
+
+int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
+  // TODO: This is awful. Need to ultimately have a direct ref to the class that *is* the adapter.
+#if defined(__MK20DX256__)
+  if (dev) {
+    if (op->need_to_send_subaddr()) Wire1.write((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->opcode == I2C_OPERATION_READ) {
+      Wire1.endTransmission(I2C_NOSTOP);
+      Wire1.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
+      int i = 0;
+      while(Wire1.available()) {
+        *(op->buf + i++) = (uint8_t) Wire1.readByte();
+      }
+    }
+    else if (op->opcode == I2C_OPERATION_WRITE) {
+      for(int i = 0; i < op->len; i++) Wire1.write(*(op->buf+i));
+      Wire1.endTransmission(I2C_STOP, 900);   // 900us timeout
+    }
+    
+    switch (Wire1.status()) {
+      case I2C_WAITING:
+        op->markComplete();
+        break;
+      case I2C_ADDR_NAK:
+        op->abort(I2C_ERR_SLAVE_NOT_FOUND);
+        break;
+      case I2C_DATA_NAK:
+        op->abort(I2C_ERR_SLAVE_INVALID);
+        break;
+      case I2C_ARB_LOST:
+        op->abort(I2C_ERR_CODE_BUS_BUSY);
+        break;
+      case I2C_TIMEOUT:
+        op->abort(I2C_ERR_CODE_TIMEOUT);
+        break;
+    }
+  }
+  else {
+#endif
+    if (op->need_to_send_subaddr()) Wire.write((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->opcode == I2C_OPERATION_READ) {
+      Wire.endTransmission(I2C_NOSTOP);
+      Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
+      int i = 0;
+      while(Wire.available()) {
+        *(op->buf + i++) = (uint8_t) Wire.readByte();
+      }
+    }
+    else if (op->opcode == I2C_OPERATION_WRITE) {
+      for(int i = 0; i < op->len; i++) Wire.write(*(op->buf+i));
+      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
+    }
+
+    switch (Wire.status()) {
+      case I2C_WAITING:
+        op->markComplete();
+        break;
+      case I2C_ADDR_NAK:
+        op->abort(I2C_ERR_SLAVE_NOT_FOUND);
+        break;
+      case I2C_DATA_NAK:
+        op->abort(I2C_ERR_SLAVE_INVALID);
+        break;
+      case I2C_ARB_LOST:
+        op->abort(I2C_ERR_CODE_BUS_BUSY);
+        break;
+      case I2C_TIMEOUT:
+        op->abort(I2C_ERR_CODE_TIMEOUT);
+        break;
+    }
+#if defined(__MK20DX256__)
+  }
+#endif
 }
 
 

@@ -169,6 +169,7 @@ class StaticHub : public EventReceiver {
     uint32_t rtc_startup_state;
     
     MGC3130* mgc3130;
+    INA219*  ina219;
     ADP8866* adp8866;
 
     // These fxns do string conversion for integer type-codes, and are only useful for logging.
