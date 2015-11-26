@@ -33,6 +33,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ADP8866::ADP8866(uint8_t _reset_pin, uint8_t _irq_pin, uint8_t addr) : I2CDeviceWithRegisters() {
   __class_initializer();
   _dev_addr = addr;
+  
+  reset_pin = _reset_pin;
+  irq_pin   = _irq_pin;
   pinMode(_irq_pin, INPUT_PULLUP); 
   pinMode(_reset_pin, OUTPUT);
   
@@ -86,8 +89,6 @@ ADP8866::ADP8866(uint8_t _reset_pin, uint8_t _irq_pin, uint8_t addr) : I2CDevice
   defineRegister(ADP8866_DELAY7      ,     (uint8_t) 0x00, false,  false, true);
   defineRegister(ADP8866_DELAY8      ,     (uint8_t) 0x00, false,  false, true);
   defineRegister(ADP8866_DELAY9      ,     (uint8_t) 0x00, false,  false, true);
-
-  digitalWrite(_reset_pin, 1);   // Release the reset pin.
 }
 
 
@@ -100,8 +101,6 @@ ADP8866::~ADP8866(void) {
 
 int8_t ADP8866::init() {
   if (syncRegisters() == I2C_ERR_CODE_NO_ERROR) {
-    writeIndirect(ADP8866_LVL_SEL_1,  0b01000111);
-    /*
     // Turn on charge pump. Limit it to 1.5x with autoscale.
     writeIndirect(ADP8866_MDCR,  0b01110101, true);
 
@@ -110,7 +109,7 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_LVL_SEL_1,  0b01000111, true);
     writeIndirect(ADP8866_LVL_SEL_2,  0xFF, true); 
                               
-    writeIndirect(ADP8866_GAIN_SEL, 0b00000100);
+    writeIndirect(ADP8866_GAIN_SEL, 0b00000100, true);
     
     // All LEDs are being driven by the charge pump.
     writeIndirect(ADP8866_PWR_SEL_1,  0x00, true);
@@ -121,7 +120,7 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_BLSEL, 0b11111111, true);
     
     // Backlight fade rates...
-    writeIndirect(ADP8866_BLFR, 0b01100110);
+    writeIndirect(ADP8866_BLFR, 0b01100110, true);
     
     // No backlight current.
     writeIndirect(ADP8866_BLMX, 0b00000000, true);
@@ -131,7 +130,7 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_ISCC2, 0b11111111, true);
     
     // SON/SOFF delays...
-    writeIndirect(ADP8866_ISCT1, 0b11110000);
+    writeIndirect(ADP8866_ISCT1, 0b11110000, true);
     writeIndirect(ADP8866_ISCT2, 0b00000000, true);
     
     
@@ -139,12 +138,12 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_ISC1, 0x7F, true);
     writeIndirect(ADP8866_ISC2, 0x7F, true);
     writeIndirect(ADP8866_ISC3, 0x7F, true);
-    writeIndirect(ADP8866_ISC4, 0x7F);
+    writeIndirect(ADP8866_ISC4, 0x7F, true);
     writeIndirect(ADP8866_ISC5, 0x7F, true);
     writeIndirect(ADP8866_ISC6, 0x7F, true);
     writeIndirect(ADP8866_ISC7, 0x7F, true);
     writeIndirect(ADP8866_ISC8, 0x7F, true);
-    writeIndirect(ADP8866_ISC9, 0x7F);*/
+    writeIndirect(ADP8866_ISC9, 0x7F);
     init_complete = true;
   }
   else {
@@ -169,6 +168,7 @@ void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
     switch (temp_reg->addr) {
       case ADP8866_MANU_DEV_ID:
         if (0x53 == *(temp_reg->val)) {
+          temp_reg->unread = false;
           // Must be 0b01010011
           //init();
         }
@@ -319,6 +319,8 @@ void ADP8866::printDebug(StringBuilder* temp) {
 */
 int8_t ADP8866::bootComplete() {
   EventReceiver::bootComplete();
+  digitalWrite(reset_pin, 1);   // Release the reset pin.
+
   readRegister((uint8_t) ADP8866_MANU_DEV_ID);
   //writeDirtyRegisters();  // If i2c is broken, this will hang the boot process...
   return 1;
@@ -453,7 +455,7 @@ bool ADP8866::channel_enabled(uint8_t chan) {
 * Perform a software reset.
 */
 void ADP8866::reset() {
-  //writeIndirect(ADP8866_SOFTWARE_RESET, 0x80);
+  //digitalWrite(reset_pin, 0);
 }
 
 /*

@@ -210,10 +210,10 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
   // TODO: This is awful. Need to ultimately have a direct ref to the class that *is* the adapter.
   if (0 == dev) {
     Wire.beginTransmission((uint8_t) (op->dev_addr & 0x00FF));
-    if (op->need_to_send_subaddr()) Wire.beginTransmission((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->need_to_send_subaddr()) Wire.write((uint8_t) (op->sub_addr & 0x00FF));
     if (op->opcode == I2C_OPERATION_READ) {
       Wire.endTransmission(I2C_NOSTOP);
-      Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
+      Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 10000);
       int i = 0;
       while(Wire.available()) {
         *(op->buf + i++) = (uint8_t) Wire.readByte();
@@ -221,10 +221,10 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
     }
     else if (op->opcode == I2C_OPERATION_WRITE) {
       for(int i = 0; i < op->len; i++) Wire.write(*(op->buf+i));
-      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
+      Wire.endTransmission(I2C_STOP, 10000);   // 10ms timeout
     }
     else if (op->opcode == I2C_OPERATION_PING) {
-      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
+      Wire.endTransmission(I2C_STOP, 10000);   // 10ms timeout
     }
 
     switch (Wire.status()) {
@@ -251,7 +251,7 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
     if (op->need_to_send_subaddr()) Wire1.write((uint8_t) (op->sub_addr & 0x00FF));
     if (op->opcode == I2C_OPERATION_READ) {
       Wire1.endTransmission(I2C_NOSTOP);
-      Wire1.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
+      Wire1.requestFrom(op->dev_addr, op->len, I2C_STOP, 10000);
       int i = 0;
       while(Wire1.available()) {
         *(op->buf + i++) = (uint8_t) Wire1.readByte();
@@ -259,10 +259,10 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
     }
     else if (op->opcode == I2C_OPERATION_WRITE) {
       for(int i = 0; i < op->len; i++) Wire1.write(*(op->buf+i));
-      Wire1.endTransmission(I2C_STOP, 900);   // 900us timeout
+      Wire1.endTransmission(I2C_STOP, 10000);   // 10ms timeout
     }
     else if (op->opcode == I2C_OPERATION_PING) {
-      Wire1.endTransmission(I2C_STOP, 900);   // 900us timeout
+      Wire1.endTransmission(I2C_STOP, 10000);   // 10ms timeout
     }
     
     switch (Wire1.status()) {
@@ -637,7 +637,7 @@ bool I2CAdapter::switch_device(uint8_t nu_addr) {
 
   
 #elif defined(MPCMZ)
-
+// PIC32 MZ i2c support is broken at the time of this writing.
 
 #else   // Assuming a linux environment.
   bool return_value = false;
