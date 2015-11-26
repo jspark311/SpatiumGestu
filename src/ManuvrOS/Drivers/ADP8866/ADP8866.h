@@ -109,6 +109,7 @@ class ADP8866 : public I2CDeviceWithRegisters, public EventReceiver {
     bool channel_enabled(uint8_t);
 
     /* Dimmer breakouts. */
+    void set_brightness(uint8_t, uint8_t);
     void set_brightness(uint8_t);
     void toggle_brightness(void);
     

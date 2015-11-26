@@ -106,7 +106,7 @@ int8_t ADP8866::init() {
 
     // Maximum current of ~16mA.
     // All LED outputs are set with the level bits.
-    writeIndirect(ADP8866_LVL_SEL_1,  0b01000111, true);
+    writeIndirect(ADP8866_LVL_SEL_1,  0b01000100, true);
     writeIndirect(ADP8866_LVL_SEL_2,  0xFF, true); 
                               
     writeIndirect(ADP8866_GAIN_SEL, 0b00000100, true);
@@ -167,12 +167,11 @@ void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
       case ADP8866_MANU_DEV_ID:
         if (0x53 == *(temp_reg->val)) {
           temp_reg->unread = false;
-          // Must be 0b01010011
-          //init();
+          // Must be 0b01010011. If so, we init...
+          init();
         }
         break;
       case ADP8866_MDCR:
-        //completed->printDebug(&local_log);
         break;
       case ADP8866_INT_STAT:
         break;
@@ -383,14 +382,27 @@ void ADP8866::procDirectDebugInstruction(StringBuilder *input) {
   }
 
   switch (*(str)) {
-    case '1':
+    case 'r':
       reset();
       break;
     case 'g':
       syncRegisters();
       break;
-    case 'r':
-      init();
+    case 'l':
+    case 'L':
+      enable_channel(temp_byte, (*(str) == 'L'));
+      break;
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      set_brightness(*(str) - 0x30, temp_byte);
       break;
     default:
       EventReceiver::procDirectDebugInstruction(input);
@@ -425,8 +437,22 @@ void ADP8866::quell_all_timers() {
 * Stores the previous value.
 */
 void ADP8866::set_brightness(uint8_t nu_brightness) {
-  //writeIndirect(ADP8866_GLOBAL_PWM_DIM, nu_brightness);
 }
+
+void ADP8866::set_brightness(uint8_t chan, uint8_t nu_brightness) {
+  if (chan > 9) {
+    // Not that many channels....
+    return;
+  }
+  // This is what happens when you javascript for too long...
+  uint8_t reg_addr      = (chan > 8) ? ADP8866_BLMX : ADP8866_ISC1+chan;
+  uint8_t present_state = (uint8_t)regValue(reg_addr);
+  nu_brightness = nu_brightness & 0x7F;  // Only these bits matter.
+  if (present_state != nu_brightness) {
+    writeIndirect(reg_addr, nu_brightness);
+  }
+}
+
 
 /*
 * Set the global brightness for LEDs managed by this chip.
@@ -441,7 +467,21 @@ void ADP8866::toggle_brightness(void) {
 *   chip, will do that as well.
 */
 void ADP8866::enable_channel(uint8_t chan, bool en) {
-  //writeIndirect(ADP8866_CHANNEL_ENABLE, new_val);
+  if (chan > 8) {  // TODO: Should be 9, and treat the backlight channel as channel 9.
+    // Not that many channels....
+    return;
+  }
+  // This is what happens when you javascript for too long...
+  uint8_t reg_addr      = (chan > 7) ? ADP8866_ISCC1 : ADP8866_ISCC2;
+  uint8_t present_state = (uint8_t)regValue(reg_addr);
+  uint8_t bitmask       = (chan > 7) ? 4 : (1 << chan);
+  uint8_t desired_state = (en ? bitmask : 0);
+  
+  if ((present_state & bitmask) ^ desired_state) {
+    // If the present state and the desired state differ, Set the register equal to the
+    //   present state masked with the desired state.
+    writeIndirect(reg_addr, desired_state ? (present_state | desired_state) : (present_state & desired_state));
+  }
 }
 
 /*
