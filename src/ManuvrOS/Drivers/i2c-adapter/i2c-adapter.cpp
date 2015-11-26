@@ -210,7 +210,11 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
   // TODO: This is awful. Need to ultimately have a direct ref to the class that *is* the adapter.
   if (0 == dev) {
     Wire.beginTransmission((uint8_t) (op->dev_addr & 0x00FF));
-    if (op->need_to_send_subaddr()) Wire.write((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->need_to_send_subaddr()) {
+      Wire.write((uint8_t) (op->sub_addr & 0x00FF));
+      op->advance_operation(1);
+    }
+    
     if (op->opcode == I2C_OPERATION_READ) {
       Wire.endTransmission(I2C_NOSTOP);
       Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 10000);
@@ -248,7 +252,11 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
 #if defined(__MK20DX256__)
   else if (1 == dev) {
     Wire1.beginTransmission((uint8_t) (op->dev_addr & 0x00FF));
-    if (op->need_to_send_subaddr()) Wire1.write((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->need_to_send_subaddr()) {
+      Wire1.write((uint8_t) (op->sub_addr & 0x00FF));
+      op->advance_operation(1);
+    }
+    
     if (op->opcode == I2C_OPERATION_READ) {
       Wire1.endTransmission(I2C_NOSTOP);
       Wire1.requestFrom(op->dev_addr, op->len, I2C_STOP, 10000);

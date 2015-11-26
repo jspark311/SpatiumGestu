@@ -373,6 +373,13 @@ int8_t I2CQueuedOperation::advance_operation(uint32_t status_reg) {
     output.concatf("---> %s\n", getStateString(xfer_state));
   }
 
+#elif defined(__MK20DX256__) | defined(__MK20DX128__)
+  switch (status_reg) {
+    case 1:
+      subaddr_sent = true;
+      break;
+  }
+  
 #endif
   if (output.length() > 0) StaticHub::log(&output);
   return 0;

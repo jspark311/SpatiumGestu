@@ -100,7 +100,7 @@ ADP8866::~ADP8866(void) {
 
 
 int8_t ADP8866::init() {
-  if (syncRegisters() == I2C_ERR_CODE_NO_ERROR) {
+//  if (syncRegisters() == I2C_ERR_CODE_NO_ERROR) {
     // Turn on charge pump. Limit it to 1.5x with autoscale.
     writeIndirect(ADP8866_MDCR,  0b01110101, true);
 
@@ -145,12 +145,12 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_ISC8, 0x7F, true);
     writeIndirect(ADP8866_ISC9, 0x7F);
     init_complete = true;
-  }
-  else {
-    StaticHub::log("ADP8866::init():\tFailed to sync registers. Init fails.\n");
-    init_complete = false;
-    return -1;
-  }
+//  }
+//  else {
+//    StaticHub::log("ADP8866::init():\tFailed to sync registers. Init fails.\n");
+//    init_complete = false;
+//    return -1;
+//  }
   return 0;
 }
 
@@ -162,10 +162,8 @@ int8_t ADP8866::init() {
 void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
   I2CDeviceWithRegisters::operationCompleteCallback(completed);
   
-  int i = 0;
-  DeviceRegister *temp_reg = reg_defs.get(i++);
-  while (temp_reg != NULL) {
-    switch (temp_reg->addr) {
+  DeviceRegister *temp_reg = getRegisterByBaseAddress(completed->sub_addr);
+  switch (completed->sub_addr) {
       case ADP8866_MANU_DEV_ID:
         if (0x53 == *(temp_reg->val)) {
           temp_reg->unread = false;
@@ -174,6 +172,7 @@ void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
         }
         break;
       case ADP8866_MDCR:
+        //completed->printDebug(&local_log);
         break;
       case ADP8866_INT_STAT:
         break;
@@ -268,9 +267,8 @@ void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
       default:
         temp_reg->unread = false;
         break;
-    }
-    temp_reg = reg_defs.get(i++);
   }
+  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
 }
 
 
@@ -385,6 +383,9 @@ void ADP8866::procDirectDebugInstruction(StringBuilder *input) {
   }
 
   switch (*(str)) {
+    case '1':
+      reset();
+      break;
     case 'g':
       syncRegisters();
       break;
@@ -456,6 +457,7 @@ bool ADP8866::channel_enabled(uint8_t chan) {
 */
 void ADP8866::reset() {
   //digitalWrite(reset_pin, 0);
+  digitalWrite(reset_pin, !digitalRead(reset_pin));
 }
 
 /*
