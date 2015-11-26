@@ -226,6 +226,7 @@ but adding support for other platforms ought to be easy.
 
     private:
       bool ping_run;
+      bool full_ping_running;
       int8_t ping_map[128];
       int8_t last_used_bus_addr;
 

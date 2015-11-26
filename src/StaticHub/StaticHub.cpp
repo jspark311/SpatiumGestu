@@ -333,9 +333,7 @@ volatile void jumpToBootloader(void) {
 
 
 volatile void reboot(void) {
-  #if defined(__MK20DX256__)
-    *((uint32_t *)0xE000ED0C) = 0x5FA0004;
-  #elif defined(__MK20DX128__)
+  #if defined(__MK20DX256__) | defined(__MK20DX128__)
     *((uint32_t *)0xE000ED0C) = 0x5FA0004;
   #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
     executeSoftReset(ENTER_BOOTLOADER_ON_BOOT);
@@ -888,6 +886,9 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
 
     case 'p':
       ina219->sync();
+      break;
+    case 'n':
+      ina219->init();
       break;
     case 'k':
       ina219->readSensor();

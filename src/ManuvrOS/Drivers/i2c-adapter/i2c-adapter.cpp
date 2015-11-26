@@ -49,13 +49,12 @@ void I2CAdapter::__class_initializer() {
   bus_error          = false;
   bus_online         = false;
   ping_run           = false;
+  full_ping_running  = false;
   last_used_bus_addr = 0;
 }
 
 
 #ifdef STM32F4XX
-
-
 I2CAdapter::I2CAdapter(uint8_t dev_id) {
   __class_initializer();
   dev = dev_id;
@@ -150,18 +149,19 @@ int8_t I2CAdapter::generateStop() {
 #elif defined(__MK20DX256__) | defined(__MK20DX128__)
 
 
-
 I2CAdapter::I2CAdapter(uint8_t dev_id) {
   __class_initializer();
   dev = dev_id;
 
   if (dev_id == 0) {
-    Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400);
+    Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_INT, I2C_RATE_400, I2C_OP_MODE_ISR);
+    Wire.setDefaultTimeout(10000);   // We are willing to wait up to 10mS before failing an operation.
     bus_online = true;
   }
   #if defined(__MK20DX256__)
   else if (dev_id == 1) {
-    Wire1.begin(I2C_MASTER, 0x00, I2C_PINS_29_30, I2C_PULLUP_INT, I2C_RATE_400);
+    Wire1.begin(I2C_MASTER, 0x00, I2C_PINS_29_30, I2C_PULLUP_INT, I2C_RATE_400, I2C_OP_MODE_ISR);
+    Wire1.setDefaultTimeout(10000);   // We are willing to wait up to 10mS before failing an operation.
     bus_online = true;
   }
   #endif
@@ -208,8 +208,46 @@ int8_t I2CAdapter::generateStop() {
 
 int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
   // TODO: This is awful. Need to ultimately have a direct ref to the class that *is* the adapter.
+  if (0 == dev) {
+    Wire.beginTransmission((uint8_t) (op->dev_addr & 0x00FF));
+    if (op->need_to_send_subaddr()) Wire.beginTransmission((uint8_t) (op->sub_addr & 0x00FF));
+    if (op->opcode == I2C_OPERATION_READ) {
+      Wire.endTransmission(I2C_NOSTOP);
+      Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
+      int i = 0;
+      while(Wire.available()) {
+        *(op->buf + i++) = (uint8_t) Wire.readByte();
+      }
+    }
+    else if (op->opcode == I2C_OPERATION_WRITE) {
+      for(int i = 0; i < op->len; i++) Wire.write(*(op->buf+i));
+      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
+    }
+    else if (op->opcode == I2C_OPERATION_PING) {
+      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
+    }
+
+    switch (Wire.status()) {
+      case I2C_WAITING:
+        op->markComplete();
+        break;
+      case I2C_ADDR_NAK:
+        op->abort(I2C_ERR_SLAVE_NOT_FOUND);
+        break;
+      case I2C_DATA_NAK:
+        op->abort(I2C_ERR_SLAVE_INVALID);
+        break;
+      case I2C_ARB_LOST:
+        op->abort(I2C_ERR_CODE_BUS_BUSY);
+        break;
+      case I2C_TIMEOUT:
+        op->abort(I2C_ERR_CODE_TIMEOUT);
+        break;
+    }
+  }
 #if defined(__MK20DX256__)
-  if (dev) {
+  else if (1 == dev) {
+    Wire1.beginTransmission((uint8_t) (op->dev_addr & 0x00FF));
     if (op->need_to_send_subaddr()) Wire1.write((uint8_t) (op->sub_addr & 0x00FF));
     if (op->opcode == I2C_OPERATION_READ) {
       Wire1.endTransmission(I2C_NOSTOP);
@@ -221,6 +259,9 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
     }
     else if (op->opcode == I2C_OPERATION_WRITE) {
       for(int i = 0; i < op->len; i++) Wire1.write(*(op->buf+i));
+      Wire1.endTransmission(I2C_STOP, 900);   // 900us timeout
+    }
+    else if (op->opcode == I2C_OPERATION_PING) {
       Wire1.endTransmission(I2C_STOP, 900);   // 900us timeout
     }
     
@@ -242,42 +283,9 @@ int8_t I2CAdapter::dispatchOperation(I2CQueuedOperation* op) {
         break;
     }
   }
+#endif
   else {
-#endif
-    if (op->need_to_send_subaddr()) Wire.write((uint8_t) (op->sub_addr & 0x00FF));
-    if (op->opcode == I2C_OPERATION_READ) {
-      Wire.endTransmission(I2C_NOSTOP);
-      Wire.requestFrom(op->dev_addr, op->len, I2C_STOP, 900);
-      int i = 0;
-      while(Wire.available()) {
-        *(op->buf + i++) = (uint8_t) Wire.readByte();
-      }
-    }
-    else if (op->opcode == I2C_OPERATION_WRITE) {
-      for(int i = 0; i < op->len; i++) Wire.write(*(op->buf+i));
-      Wire.endTransmission(I2C_STOP, 900);   // 900us timeout
-    }
-
-    switch (Wire.status()) {
-      case I2C_WAITING:
-        op->markComplete();
-        break;
-      case I2C_ADDR_NAK:
-        op->abort(I2C_ERR_SLAVE_NOT_FOUND);
-        break;
-      case I2C_DATA_NAK:
-        op->abort(I2C_ERR_SLAVE_INVALID);
-        break;
-      case I2C_ARB_LOST:
-        op->abort(I2C_ERR_CODE_BUS_BUSY);
-        break;
-      case I2C_TIMEOUT:
-        op->abort(I2C_ERR_CODE_TIMEOUT);
-        break;
-    }
-#if defined(__MK20DX256__)
   }
-#endif
 }
 
 
@@ -726,6 +734,16 @@ void I2CAdapter::advance_work_queue(void) {
 				else {
 					ping_map[current_queue_item->dev_addr % 128] = -1;
 				}
+				
+				if (full_ping_running) {
+				  if ((current_queue_item->dev_addr & 0x00FF) < 127) {
+				    ping_slave_addr(current_queue_item->dev_addr + 1);
+				  }
+				  else {
+				    if (verbosity > 3) local_log.concat("Concluded i2c ping sweep.");
+				    full_ping_running = false;
+				  }
+				}
 			}
 	
 			delete current_queue_item;
@@ -970,10 +988,9 @@ void I2CAdapter::procDirectDebugInstruction(StringBuilder *input) {
         local_log.concatf("ping i2c slave 0x%02x.\n", temp_byte);
         ping_slave_addr(temp_byte);
       }
-      else {
-        for (int i = 1; i < 128; i++) {
-          ping_slave_addr(i);
-        }
+      else if (!full_ping_running) {
+        full_ping_running = true;
+        ping_slave_addr(1);
       }
       break;
     case ']':
