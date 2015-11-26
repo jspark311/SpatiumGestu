@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
   
 #include <unistd.h>
 
+#include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
 #include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
 #include <ManuvrOS/Drivers/ADP8866/ADP8866.h>
 #include <ManuvrOS/Drivers/INA219/INA219.h>
@@ -449,6 +450,8 @@ int8_t StaticHub::bootstrap() {
   event_manager.subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
   event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
 
+  mcp73833 = new MCP73833(9, 10);
+  
   // Setup the first i2c adapter and Subscribe it to EventManager.
   i2c     = new I2CAdapter(0);
   mgc3130 = new MGC3130(16, 17);

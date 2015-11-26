@@ -62,6 +62,7 @@ This is the Spatium Gestu version of StaticHub.
 class MGC3130;
 class ADP8866;
 class INA219;
+class MCP73833;
 
 /*
 * These are just lables. We don't really ever care about the *actual* integers being defined here. Only
@@ -159,7 +160,7 @@ class StaticHub : public EventReceiver {
     EventManager event_manager;            // This is our asynchronous message queue. 
     Scheduler __scheduler;
 
-	StringBuilder usb_rx_buffer;
+    StringBuilder usb_rx_buffer;
     StringBuilder last_user_input;
 
     // Scheduler PIDs that will be heavilly used...
@@ -168,9 +169,10 @@ class StaticHub : public EventReceiver {
 
     uint32_t rtc_startup_state;
     
-    MGC3130* mgc3130;
-    INA219*  ina219;
-    ADP8866* adp8866;
+    MCP73833* mcp73833;
+    MGC3130*  mgc3130;
+    INA219*   ina219;
+    ADP8866*  adp8866;
 
     // These fxns do string conversion for integer type-codes, and are only useful for logging.
     const char* getRTCStateString(uint32_t code);

@@ -105,6 +105,7 @@ I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
 SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/MCP73833/*.cpp
 
 
 SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS)
