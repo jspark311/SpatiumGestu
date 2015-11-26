@@ -721,13 +721,6 @@ void StaticHub::printDebug(StringBuilder* output) {
 
 
 
-void StaticHub::print_type_sizes(void) {
-  StringBuilder temp("---< Type sizes >-----------------------------\n");
-  StaticHub::log(&temp);
-}
-
-
-
 
 void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
   char *str = (char *) input->string();
@@ -807,9 +800,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       }
       else if (2 == temp_byte) {
         event_manager.printDebug(&local_log);
-      }
-      else if (3 == temp_byte) {
-        print_type_sizes();
       }
       else if (5 == temp_byte) {
         event_manager.clean_first_discard();

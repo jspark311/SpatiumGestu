@@ -134,16 +134,17 @@ int8_t ADP8866::init() {
     writeIndirect(ADP8866_ISCT2, 0b00000000, true);
     
     
-    // Full-scale current for all sinks.
-    writeIndirect(ADP8866_ISC1, 0x7F, true);
-    writeIndirect(ADP8866_ISC2, 0x7F, true);
-    writeIndirect(ADP8866_ISC3, 0x7F, true);
-    writeIndirect(ADP8866_ISC4, 0x7F, true);
-    writeIndirect(ADP8866_ISC5, 0x7F, true);
-    writeIndirect(ADP8866_ISC6, 0x7F, true);
-    writeIndirect(ADP8866_ISC7, 0x7F, true);
-    writeIndirect(ADP8866_ISC8, 0x7F, true);
-    writeIndirect(ADP8866_ISC9, 0x7F);
+    // TODO: When the driver inits, we shouldn't have any LEDs on until the user sets
+    //   some mandatory constraint so ve doesn't fry vis LEDs.
+    writeIndirect(ADP8866_ISC1, 0x10, true);
+    writeIndirect(ADP8866_ISC2, 0x10, true);
+    writeIndirect(ADP8866_ISC3, 0x10, true);
+    writeIndirect(ADP8866_ISC4, 0x10, true);
+    writeIndirect(ADP8866_ISC5, 0x10, true);
+    writeIndirect(ADP8866_ISC6, 0x10, true);
+    writeIndirect(ADP8866_ISC7, 0x10, true);
+    writeIndirect(ADP8866_ISC8, 0x10, true);
+    writeIndirect(ADP8866_ISC9, 0x10);
     init_complete = true;
 //  }
 //  else {

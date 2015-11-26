@@ -174,8 +174,6 @@ class StaticHub : public EventReceiver {
 
     // These fxns do string conversion for integer type-codes, and are only useful for logging.
     const char* getRTCStateString(uint32_t code);
-    
-    void print_type_sizes(void);
 
     // These functions handle various stages of bootstrap...
     void gpioSetup(void) volatile;        // We call this once on bootstrap. Sets up GPIO not covered by other classes.

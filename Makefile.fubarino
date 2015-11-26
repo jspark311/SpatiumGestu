@@ -45,9 +45,9 @@ BOARD_DEF          = _BOARD_FUBARINO_MINI_
 # Source files, includes, and linker directives...
 ###########################################################################
 INCLUDES     = -iquote. -iquotesrc/ 
+INCLUDES    += -I./ -Isrc/
 INCLUDES    += -I./ -I$(PLATFORM_PATH)/libraries #-I$(MPEIDE_PATH)/libraries
 INCLUDES    += -I$(PLATFORM_PATH)/cores/pic32
-INCLUDES    += -I./
 INCLUDES    += -I$(PLATFORM_PATH)/libraries/Wire/utility/
 INCLUDES    += -I$(PLATFORM_PATH)/variants/Fubarino_Mini/
 
@@ -93,20 +93,23 @@ endif
 ###########################################################################
 # Source file definitions...
 ###########################################################################
-
-
 PLATFORM_CPP_SRC  = $(PLATFORM_PATH)/libraries/Wire/*.cpp
 PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WString.cpp $(PLATFORM_PATH)/cores/pic32/Tone.cpp
 PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/Print.cpp $(PLATFORM_PATH)/cores/pic32/HardwareSerial.cpp
 PLATFORM_CPP_SRC += $(PLATFORM_PATH)/cores/pic32/WMath.cpp $(PLATFORM_PATH)/cores/pic32/main.cpp 
 
+MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
+MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
+
+I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
+I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
+
+SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
 
 
-
-MANUVROS_SRCS  = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
-MANUVROS_SRCS += src/ManuvrOS/Drivers/i2c-adapter/*.cpp src/ManuvrOS/Drivers/MGC3130/*.cpp 
-
-SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS)
+SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS)
 
 
 

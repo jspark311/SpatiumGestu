@@ -51,6 +51,11 @@ void I2CAdapter::__class_initializer() {
   ping_run           = false;
   full_ping_running  = false;
   last_used_bus_addr = 0;
+
+  for (uint16_t i = 0; i < 128; i++) ping_map[i] = 0;   // Zero the ping map.
+
+  // Set a globalized refernece so we can hit the proper adapter from an ISR.
+  i2c = this;
 }
 
 
@@ -105,10 +110,6 @@ I2CAdapter::I2CAdapter(uint8_t dev_id) {
     I2C_InitStruct.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit; // set address length to 7 bit addresses
     I2C_Init(I2C1, &I2C_InitStruct);                 // init I2C1
     I2C_Cmd(I2C1, ENABLE);       // enable I2C1
-  }
-  
-  for (uint16_t i = 0; i < 128; i++) {
-  	  ping_map[i] = 0;
   }
 }
 
@@ -168,11 +169,6 @@ I2CAdapter::I2CAdapter(uint8_t dev_id) {
   else {
     // Unsupported
   }
-  
-  for (uint16_t i = 0; i < 128; i++) {
-  	  ping_map[i] = 0;
-  }
-  i2c = this;
 }
 
 
@@ -311,11 +307,6 @@ I2CAdapter::I2CAdapter(uint8_t dev_id) {
   else {
     // Unsupported.
   }
-  
-  for (uint16_t i = 0; i < 128; i++) {
-  	  ping_map[i] = 0;
-  }
-  i2c = this;
 }
 
 
@@ -361,11 +352,6 @@ I2CAdapter::I2CAdapter(uint8_t dev_id) {
     //Wire.begin(I2C_MASTER, 0x00, I2C_PINS_29_30, I2C_PULLUP_INT, I2C_RATE_400);
     bus_online = true;
   }
-  
-  for (uint16_t i = 0; i < 128; i++) {
-  	  ping_map[i] = 0;
-  }
-  i2c = this;
 }
 
 
@@ -851,6 +837,8 @@ void I2CAdapter::printPingMap(StringBuilder *temp) {
       return;
     }
     temp->concat("\n\n\tPing Map\n\t      0 1 2 3 4 5 6 7 8 9 A B C D E F\n");
+    // TODO: This is needlessly-extravagent of memory. Do it this way instead...
+    //char str_buf[];
     for (uint8_t i = 0; i < 128; i+=16) {
       temp->concatf("\t0x%02x: %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s %s\n",
         i,
@@ -871,6 +859,7 @@ void I2CAdapter::printPingMap(StringBuilder *temp) {
         ((ping_map[i + 0x0E] == 0) ? " " : ((ping_map[i + 0x0E] < 0) ? "-" : "*")),
         ((ping_map[i + 0x0F] == 0) ? " " : ((ping_map[i + 0x0F] < 0) ? "-" : "*"))
       );
+      //temp->concat(str_buf);
     }
   }
   temp->concat("\n");
