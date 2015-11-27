@@ -442,10 +442,7 @@ int8_t StaticHub::bootstrap() {
   // One of the first things we need to do is populate the EventManager with all of the
   // message codes that come with this firmware.
   int mes_count = sizeof(message_defs_dev_specific) / sizeof(MessageTypeDef);
-  for (int i = 0; i < mes_count; i++) {
-    ManuvrMsg::message_defs_extended.insert(&message_defs_dev_specific[i]);
-//    log_buffer.concatf("Adding %s\n", message_defs_dev_specific[i].debug_label);
-  }
+  ManuvrMsg::registerMessages(message_defs_dev_specific, mes_count);
 
   event_manager.subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
   event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
