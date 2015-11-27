@@ -32,7 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "ManuvrOS/Drivers/i2c-adapter/i2c-adapter.h"
 
 
-
+// These are the register definitions.
 #define ADP8866_MANU_DEV_ID        0x00
 #define ADP8866_MDCR               0x01
 #define ADP8866_INT_STAT           0x02
@@ -85,6 +85,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ADP8866_I2CADDR            0x27
 
 
+/*
+* Used to aggregate channel information into a single place. Makes drive code more readable.
+*/
+typedef struct adp8866_led_chan {
+  float          max_current;
+  uint8_t        present;
+  uint8_t        fault_code;
+} ADPLEDChannel;
+
+
 
 class ADP8866 : public I2CDeviceWithRegisters, public EventReceiver {
   public:
@@ -129,6 +139,10 @@ class ADP8866 : public I2CDeviceWithRegisters, public EventReceiver {
     uint8_t stored_dimmer_val;
     uint8_t reset_pin;
     uint8_t irq_pin;
+    
+    // The chip only has 9 outputs, but we make a synthetic tenth chasnnel
+    //   to represent the backlight.
+    ADPLEDChannel channels[10];
     
     void reset();
     void set_power_mode(uint8_t);
