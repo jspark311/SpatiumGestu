@@ -119,15 +119,16 @@ class ADP8866 : public I2CDeviceWithRegisters, public EventReceiver {
 
   protected:
     int8_t bootComplete();
+    void __class_initializer();
 
 
   private:
-    bool init_complete        = false;
-    uint8_t power_mode        = 0;
-    uint8_t class_mode        = 0;
-    uint8_t stored_dimmer_val = 0;
-    uint8_t reset_pin         = 0;
-    uint8_t irq_pin           = 0;
+    bool init_complete;
+    uint8_t power_mode;
+    uint8_t class_mode;
+    uint8_t stored_dimmer_val;
+    uint8_t reset_pin;
+    uint8_t irq_pin;
     
     void reset();
     void set_power_mode(uint8_t);

@@ -27,6 +27,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "ADP8866.h"
 
 
+
+
+/**
+* This is here for compatibility with C++ standards that do not allow for definition and declaration
+*   in the header file. Takes no parameters, and returns nothing.
+*/
+void ADP8866::__class_initializer() {
+  EventReceiver::__class_initializer();
+  reset_pin         = 0;
+  irq_pin           = 0;
+  stored_dimmer_val = 0;
+  class_mode        = 0;
+  power_mode        = 0;
+  init_complete     = false;
+}
+
+
 /*
 * Constructor. Takes i2c address as argument.
 */
