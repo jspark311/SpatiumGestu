@@ -793,5 +793,3 @@ void EventManager::printDebug(StringBuilder* output) {
   printProfiler(output);
 }
 
-
-
