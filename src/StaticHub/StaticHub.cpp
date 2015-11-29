@@ -457,10 +457,10 @@ int8_t StaticHub::bootstrap() {
   adp8866     = new ADP8866(7, 8, 0x27);
 
   event_manager.subscribe((EventReceiver*) i2c);
+  event_manager.subscribe((EventReceiver*) adp8866);
+
   ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
   ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
-
-  event_manager.subscribe((EventReceiver*) adp8866);
   
   init_RNG();      // Fire up the RNG...
   initRTC();

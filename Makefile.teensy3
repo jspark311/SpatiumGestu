@@ -46,6 +46,7 @@ INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I./ -Isrc/
+INCLUDES    += -I$(TEENSY_PATH)libraries/FreeRTOS_ARM/
 
 LD_FILE     = $(TEENSY_PATH)cores/teensy3/mk20dx128.ld
 
@@ -107,8 +108,20 @@ SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/MCP73833/*.cpp
 
+FREERTOS_C_SRC     = $(TEENSY_PATH)libraries/FreeRTOS_ARM/FreeRTOS_ARM.c
+FREERTOS_CPP_SRC  += $(TEENSY_PATH)libraries/FreeRTOS_ARM/assertMsg.cpp
+FREERTOS_CPP_SRC  += $(TEENSY_PATH)libraries/FreeRTOS_ARM/basic_io_arm.cpp
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/croutine.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/event_groups.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/heap_3.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/list.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/port.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/queue.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/tasks.c
+FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/timers.c
 
-SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS)
+
+SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS) $(FREERTOS_CPP_SRC)
 
 
 
@@ -173,6 +186,7 @@ $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 	$(shell mkdir $(OUTPUT_PATH))
 
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(SRCS)
+	$(C_CROSS) -c $(CFLAGS) $(FREERTOS_C_SRC)
 	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/*.o *.o -L$(OUTPUT_PATH) $(LIBS)
 
 	@echo

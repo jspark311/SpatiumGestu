@@ -56,6 +56,14 @@ void I2CAdapter::__class_initializer() {
 
   // Set a globalized refernece so we can hit the proper adapter from an ISR.
   i2c = this;
+  
+  // We need some internal events to allow communication back from the ISR.
+  const MessageTypeDef i2c_message_defs[] = {
+    { MANUVR_MSG_I2C_QUEUE_READY, MSG_FLAG_IDEMPOTENT,  "I2C_QUEUE_READY", ManuvrMsg::MSG_ARGS_NONE }  // The i2c queue is ready for attention.
+  };
+  
+  int mes_count = sizeof(i2c_message_defs) / sizeof(MessageTypeDef);
+  ManuvrMsg::registerMessages(i2c_message_defs, mes_count);
 }
 
 
@@ -525,16 +533,6 @@ int8_t I2CAdapter::notify(ManuvrEvent *active_event) {
       advance_work_queue();
       return_value++;
       break;
-    case MANUVR_MSG_I2C_DUMP_DEBUG:
-      {
-        StringBuilder temp;
-        printDebug(&temp);
-        printPingMap(&temp);
-        StaticHub::log(&temp);
-        return_value++;
-      }
-      return_value++;
-      break;
     default:
       return_value += EventReceiver::notify(active_event);
       break;
@@ -911,7 +909,6 @@ void I2CAdapter::printDebug(StringBuilder *temp) {
   temp->concatf("--- bus_online             %s\n", (bus_online ? "yes" : "no"));
   printPingMap(temp);
   
-
   if (current_queue_item != NULL) {
     temp->concat("Currently being serviced:\n");
     current_queue_item->printDebug(temp);
@@ -951,6 +948,9 @@ void I2CAdapter::procDirectDebugInstruction(StringBuilder *input) {
       }
       else if (temp_byte == 255) {
         printDevs(&local_log);
+      }
+      else if (temp_byte == 253) {
+        printPingMap(&local_log);
       }
       else {
         printDebug(&local_log);
