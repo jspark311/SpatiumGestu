@@ -118,7 +118,7 @@ int8_t EventManager::subscribe(EventReceiver *client) {
   int8_t return_value = subscribers.insert(client);
   if (boot_completed) {
     // This subscriber is joining us after bootup. Call its bootComplete() fxn to cause it to init.
-    //client->notify(returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED));
+    client->notify(returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED));
   }
   return ((return_value >= 0) ? 0 : -1);
 }
@@ -205,9 +205,11 @@ int8_t EventManager::raiseEvent(uint16_t code, EventReceiver* cb) {
   }
   else {
     if (INSTANCE->verbosity > 4) {
+      #ifdef __MANUVR_DEBUG
       StringBuilder output("raiseEvent():\tvalidate_insertion() failed:\n");
       output.concat(ManuvrMsg::getMsgTypeString(code));
       StaticHub::log(&output);
+      #endif
       INSTANCE->insertion_denials++;
     }
     INSTANCE->reclaim_event(nu);
@@ -236,11 +238,11 @@ int8_t EventManager::staticRaiseEvent(ManuvrEvent* event) {
   }
   else {
     if (INSTANCE->verbosity > 4) {
-      //local_log.concatf("Static: An incoming event 0x%04x failed validate_insertion(). Trapping it...\n", code);
-      //StaticHub::log(&local_log);
+      #ifdef __MANUVR_DEBUG
       StringBuilder output("staticRaiseEvent():\tvalidate_insertion() failed:\n");
       event->printDebug(&output);;
       StaticHub::log(&output);
+      #endif
       INSTANCE->insertion_denials++;
     }
     INSTANCE->reclaim_event(event);
@@ -485,7 +487,9 @@ int8_t EventManager::procIdleFlags() {
     current_event = active_event;
     
     // Chat and measure.
+    #ifdef __MANUVR_DEBUG
     if (verbosity >= 5) local_log.concatf("Servicing: %s\n", active_event->getMsgTypeString());
+    #endif
     if (profiler_enabled) profiler_mark_0 = micros();
 
     // LOUD REMINDER! The switch() block below is the EventManager reacting to Events. Not related to
@@ -603,7 +607,9 @@ int8_t EventManager::procIdleFlags() {
     procCallBacks(active_event);
     
     if (0 == activity_count) {
+      #ifdef __MANUVR_DEBUG
       if (verbosity >= 3) local_log.concatf("\tDead event: %s\n", active_event->getMsgTypeString());
+      #endif
       total_events_dead++;
     }
 
@@ -616,7 +622,9 @@ int8_t EventManager::procIdleFlags() {
         //   if (verbosity >=7) output.concatf("specific_event_callback returns %d\n", active_event->callback->callback_proc(active_event));
         switch (active_event->callback->callback_proc(active_event)) {
           case EVENT_CALLBACK_RETURN_RECYCLE:     // The originating class wants us to re-insert the event.
+            #ifdef __MANUVR_DEBUG
             if (verbosity > 5) local_log.concatf("Recycling %s.\n", active_event->getMsgTypeString());
+            #endif
             if (0 == validate_insertion(active_event)) {
               event_queue.insert(active_event, active_event->priority);
               // This is the one case where we do NOT want the event reclaimed.
@@ -628,7 +636,9 @@ int8_t EventManager::procIdleFlags() {
             //if (verbosity > 1) local_log.concatf("EventManager found a possible mistake. Unexpected return case from callback_proc.\n");
             // NOTE: No break;
           case EVENT_CALLBACK_RETURN_DROP:        // The originating class expects us to drop the event.
+            #ifdef __MANUVR_DEBUG
             if (verbosity > 5) local_log.concatf("Dropping %s after running.\n", active_event->getMsgTypeString());
+            #endif
             // NOTE: No break;
           case EVENT_CALLBACK_RETURN_REAP:        // The originating class is explicitly telling us to reap the event.
             // NOTE: No break;
@@ -687,16 +697,19 @@ int8_t EventManager::procIdleFlags() {
       profiler_item->run_time_total  += profiler_item->run_time_last;
       profiler_item->run_time_average = profiler_item->run_time_total / ((profiler_item->executions) ? profiler_item->executions : 1);
 
-      
+      #ifdef __MANUVR_DEBUG
       if (verbosity >= 6) local_log.concatf("%s finished.\n\tTotal time: %ld uS\n", tmp_msg_def->debug_label, (profiler_mark_3 - profiler_mark_0));
       if (profiler_mark_2) {
         if (verbosity >= 6) local_log.concatf("\tTook %ld uS to notify.\n", profiler_item->run_time_last);
       }
+      #endif
       profiler_mark_2 = 0;  // Reset for next iteration.
     }
 
     if (event_queue.size() > 30) {
+      #ifdef __MANUVR_DEBUG
       local_log.concatf("Depth %10d \t %s\n", event_queue.size(), ManuvrMsg::getMsgTypeString(msg_code_local));
+      #endif
     }
 
     return_value++;   // We just serviced an Event.
