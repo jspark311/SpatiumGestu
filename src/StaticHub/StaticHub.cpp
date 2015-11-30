@@ -427,10 +427,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       else if (2 == temp_byte) {
         event_manager.printDebug(&local_log);
       }
-      else if (5 == temp_byte) {
-        event_manager.clean_first_discard();
-        local_log.concat("EventManager cleaned the head of the discard queue.\n");
-      }
       else if (6 == temp_byte) {
         local_log.concat("EventManager profiling disabled.\n");
         event_manager.profiler(false);

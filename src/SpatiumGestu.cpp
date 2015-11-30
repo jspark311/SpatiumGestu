@@ -64,17 +64,18 @@ void setup() {
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main task", 330, (void*)sh, 1, NULL );
+  xTaskCreate(mainTaskFxn, "Main", 256, (void*)sh, 1, NULL );
   
   // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Scheduler task", 40, (void*)scheduler, 1, NULL );
-  xTaskCreate(loggerTask, "Logger task", 40, (void*)sh, 1, NULL);
+  xTaskCreate(schedulerTaskFxn, "Sched", 40, (void*)scheduler, 1, NULL );
+  xTaskCreate(loggerTask, "Logger", 40, (void*)sh, 1, NULL);
   
   vTaskStartScheduler();
   for( ;; );
   
   #elif defined(_BOARD_FUBARINO_MINI_)
   attachCoreTimerService(timerCallbackScheduler);
+  sei();
   #endif
 }
 
@@ -84,7 +85,7 @@ void setup() {
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
 
 void mainTaskFxn(void *pvParameters) {
-  unsigned char* ser_buffer = (unsigned char*) alloca(255);
+  unsigned char* ser_buffer = (unsigned char*) alloca(128);
   int bytes_read = 0;
   
   sh = StaticHub::getInstance();
@@ -103,7 +104,7 @@ void mainTaskFxn(void *pvParameters) {
       if (Serial.available()) {
         // Zero the buffer.
         bytes_read = 0;
-        for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
+        for (int i = 0; i < 128; i++) *(ser_buffer+i) = 0;
         char c = 0;
         while (Serial.available()) {
           c = Serial.read();
@@ -138,6 +139,9 @@ void loggerTask(void *pvParameters) {
         Serial.print((char*) StaticHub::log_buffer.position(0));
         StaticHub::log_buffer.drop_position(0);
       }
+    }
+    else {
+      taskYIELD();
     }
   }
 }

@@ -8,13 +8,9 @@
   #include "ManuvrMsg/ManuvrMsg.h"
   #include "DataStructures/PriorityQueue.h"
   #include "DataStructures/LightLinkedList.h"
-  
-  //#ifdef ARDUINO
-  //  #include "Arduino.h"
-  //#endif
 
-  
-  #define EVENT_MANAGER_PREALLOC_COUNT      8   // How large a preallocation buffer should we keep?
+
+  #define EVENT_MANAGER_PREALLOC_COUNT      4   // How large a preallocation buffer should we keep?
 
   
   #define EVENT_CALLBACK_RETURN_ERROR       -1 // Horrible things happened in the originating class. This should never happen.
@@ -215,7 +211,6 @@
       const char* getReceiverName();
       void printDebug(StringBuilder *);
       
-      void clean_first_discard();
       float cpu_usage();
       
       bool containsPreformedEvent(ManuvrEvent*);
@@ -246,7 +241,6 @@
   
     private:
       PriorityQueue<ManuvrEvent*> preallocated;
-      PriorityQueue<ManuvrEvent*> discarded;
       PriorityQueue<ManuvrEvent*> event_queue;   // Events that have been raised.
       PriorityQueue<EventReceiver*>    subscribers;   // Our subscription manifest.
       PriorityQueue<TaskProfilerData*> event_costs;     // Message code is the priority. Calculates average cost in uS.

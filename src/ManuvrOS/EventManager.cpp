@@ -839,15 +839,6 @@ float EventManager::cpu_usage() {
 *  ▀▀▀▀▀▀▀▀▀▀   ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀   ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀▀▀▀▀ 
 ****************************************************************************************************/
 
-/* Debug */
-void EventManager::clean_first_discard() {
-  ManuvrEvent* event = discarded.dequeue();
-  if (NULL == event) {
-    delete event;
-  }
-}
-
-
 /**
 * There is a NULL-check performed upstream for the scheduler member. So no need 
 *   to do it again here.
@@ -896,14 +887,6 @@ void EventManager::printDebug(StringBuilder* output) {
   
   if (NULL != current_event) {
     current_event->printDebug(output);
-  }
-
-  if (discarded.size() > 0) {
-    output->concatf("\nDiscard queue (%d total):\n", discarded.size());
-    for (int i = 0; i < discarded.size(); i++) {
-      discarded.get(i)->printDebug(output);
-    }
-    output->concat("\n");
   }
 
   printProfiler(output);

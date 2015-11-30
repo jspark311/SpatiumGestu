@@ -38,7 +38,6 @@ C_STANDARD         = gnu99
 CPP_STANDARD       = gnu++11
 FORMAT             = ihex
 
-F_CPU = $(CPU_SPEED)
 
 ###########################################################################
 # Source files, includes, and linker directives...
@@ -52,7 +51,7 @@ INCLUDES    += -I$(TEENSY_PATH)libraries/FreeRTOS_ARM/
 LD_FILE     = src/mk20dx128.ld
 
 # Libraries to link
-LIBS = -lm -lstdc++ -larm_cortexM4l_math -lc
+LIBS = -lm -lstdc++ -larm_cortexM4l_math
 
 # Wrap the include paths into the flags...
 CFLAGS = $(INCLUDES)
@@ -68,7 +67,8 @@ CFLAGS += -mfloat-abi=soft
 CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
 
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
-#CFLAGS += -MMD 
+#CFLAGS += -MMD
+CFLAGS += -fstack-usage
 CFLAGS += -D__MANUVR_CONSOLE_SUPPORT -D__MANUVR_DEBUG
 
 CPP_FLAGS = -std=$(CPP_STANDARD) 
