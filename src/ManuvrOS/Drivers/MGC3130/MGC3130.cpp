@@ -35,6 +35,39 @@ This class is a driver for Microchip's MGC3130 e-field gesture sensor. It is mea
 #include <StringBuilder/StringBuilder.h>
 
 
+const MessageTypeDef mgc3130_message_defs[] = {
+  {  MANUVR_MSG_SENSOR_MGC3130            , MSG_FLAG_IDEMPOTENT,  "MGC3130",                   ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_SENSOR_MGC3130_INIT       , MSG_FLAG_IDEMPOTENT,  "MGC3130_INIT",              ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+
+  /* 
+    For messages that have arguments, we have the option of defining inline lables for each parameter.
+    This is advantageous for debugging and writing front-ends. We case-off here to make this choice at
+    compile time.
+  */
+  #if defined (__ENABLE_MSG_SEMANTICS)
+  {  MANUVR_MSG_GESTURE_LEGEND            , MSG_FLAG_EXPORTABLE,  "GESTURE_LEGEND",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_DEFINITION        , MSG_FLAG_EXPORTABLE,  "GESTURE_DEFINITION",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_OBLITERATE        , MSG_FLAG_EXPORTABLE,  "GESTURE_OBLITERATE",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_LINK              , MSG_FLAG_EXPORTABLE,  "GESTURE_LINK",              ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_UNLINK            , MSG_FLAG_EXPORTABLE,  "GESTURE_UNLINK",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_RECOGNIZED        , MSG_FLAG_EXPORTABLE,  "GESTURE_RECOGNIZED",        ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_NUANCE            , MSG_FLAG_EXPORTABLE,  "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_DISASSERT         , MSG_FLAG_EXPORTABLE,  "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE }, //
+  {  MANUVR_MSG_GESTURE_ONE_SHOT          , MSG_FLAG_EXPORTABLE,  "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE }, //
+  #else
+  {  MANUVR_MSG_GESTURE_LEGEND            , MSG_FLAG_EXPORTABLE,  "GESTURE_LEGEND",            ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_DEFINITION        , MSG_FLAG_EXPORTABLE,  "GESTURE_DEFINITION",        ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_OBLITERATE        , MSG_FLAG_EXPORTABLE,  "GESTURE_OBLITERATE",        ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_LINK              , MSG_FLAG_EXPORTABLE,  "GESTURE_LINK",              ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_UNLINK            , MSG_FLAG_EXPORTABLE,  "GESTURE_UNLINK",            ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_RECOGNIZED        , MSG_FLAG_EXPORTABLE,  "GESTURE_RECOGNIZED",        ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_NUANCE            , MSG_FLAG_EXPORTABLE,  "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_DISASSERT         , MSG_FLAG_EXPORTABLE,  "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  {  MANUVR_MSG_GESTURE_ONE_SHOT          , MSG_FLAG_EXPORTABLE,  "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE, NULL }, //
+  #endif
+};
+
+
 ManuvrEvent _isr_read_event(MANUVR_MSG_SENSOR_MGC3130);
 volatile int _isr_ts_pin = 0;
 
@@ -116,6 +149,9 @@ MGC3130::MGC3130(int ts, int rst, uint8_t addr) {
   last_seq_num     = 0; 
   last_nuance_sent = millis();
   INSTANCE = this;
+
+  // Inform the EventManager of the codes we will be using...
+  ManuvrMsg::registerMessages(mgc3130_message_defs, sizeof(mgc3130_message_defs) / sizeof(MessageTypeDef));
 }
 
 

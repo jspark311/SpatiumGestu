@@ -112,7 +112,7 @@ volatile void jumpToBootloader();
 volatile void reboot();
 void globalIRQEnable();
 void globalIRQDisable();
-
+void maskableInterrupts(bool);
 
 /*
 * Randomness

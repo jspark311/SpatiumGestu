@@ -60,7 +60,6 @@ void setup() {
   pinMode(MANUVR_LOGO_LED,  OUTPUT);
   
   sh = StaticHub::getInstance();
-  sh->bootstrap();
 
   event_manager = sh->fetchEventManager();
   scheduler     = sh->fetchScheduler();

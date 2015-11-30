@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
 const MessageTypeDef adp8866_message_defs[] = {
-  {  MANUVR_MSG_ADP8866_IRQ, 0x0000,  "ADP8866_IRQ",  ManuvrMsg::MSG_ARGS_NONE, NULL },  // Raised when bootstrap is finished.
+  {  MANUVR_MSG_ADP8866_IRQ, 0x0000,  "ADP8866_IRQ",  ManuvrMsg::MSG_ARGS_NONE, NULL },  // 
 
   /* 
     For messages that have arguments, we have the option of defining inline lables for each parameter.

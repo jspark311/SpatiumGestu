@@ -39,26 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 // Externs and prototypes...
 extern volatile I2CAdapter* i2c;
-uint32_t profiler_mark_0 = 0;
-uint32_t profiler_mark_1 = 0;
-
-
-
-// These are only here until they are migrated to each receiver that deals with them.
-const MessageTypeDef message_defs_dev_specific[] = {
-  {  MANUVR_MSG_GESTURE_LEGEND            , MSG_FLAG_EXPORTABLE,  "GESTURE_LEGEND",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_DEFINITION        , MSG_FLAG_EXPORTABLE,  "GESTURE_DEFINITION",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_OBLITERATE        , MSG_FLAG_EXPORTABLE,  "GESTURE_OBLITERATE",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_LINK              , MSG_FLAG_EXPORTABLE,  "GESTURE_LINK",              ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_UNLINK            , MSG_FLAG_EXPORTABLE,  "GESTURE_UNLINK",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_RECOGNIZED        , MSG_FLAG_EXPORTABLE,  "GESTURE_RECOGNIZED",        ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_NUANCE            , MSG_FLAG_EXPORTABLE,  "GESTURE_NUANCE",            ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_DISASSERT         , MSG_FLAG_EXPORTABLE,  "GESTURE_DISASSERT",         ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_GESTURE_ONE_SHOT          , MSG_FLAG_EXPORTABLE,  "GESTURE_ONE_SHOT",          ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_SENSOR_MGC3130            , MSG_FLAG_IDEMPOTENT,  "MGC3130",                   ManuvrMsg::MSG_ARGS_NONE }, //
-  {  MANUVR_MSG_SENSOR_MGC3130_INIT       , MSG_FLAG_IDEMPOTENT,  "MGC3130_INIT",              ManuvrMsg::MSG_ARGS_NONE }, //
-};
-
 
 
 
@@ -94,8 +74,6 @@ void stdout_funnel() {
 volatile StaticHub* StaticHub::INSTANCE = NULL;
 
 bool StaticHub::mute_logger = false;
-
-
 
 
 
@@ -157,44 +135,6 @@ void StaticHub::disableLogCallback(){
 
 
 /****************************************************************************************************
-* Functions that deal with clock and mode switching...                                              *
-****************************************************************************************************/
-
-/*
-* Call this with a boolean to enable or disable maskable interrupts globally.
-* NOTE: This includes USB and SysTick. So no host communication, and no scheduler.
-*       Events ought to still work, however.
-*/
-void StaticHub::maskable_interrupts(bool enable) {
-  if (enable) {
-    sei();
-    StaticHub::log("All interrupts enabled\n");
-  }
-  else {
-    cli();
-    StaticHub::log("All interrupts masked\n");
-    EventManager::raiseEvent(MANUVR_MSG_INTERRUPTS_MASKED, NULL);
-  }
-}
-
-
-/*
-* From this fxn will grow the IRQ aspect of our mode-switching (power use).
-*   It would be prefferable to contain this machinery within the classes that
-*   each block pertains to, but for debugging sake, they are centrallized here
-*   for the moment.
-* The problem is related to hard faults when the peripherals are allowed to bring
-*   their own interrupts online. Solve that before trying to make this pretty.
-*/
-void StaticHub::off_class_interrupts(bool enable) {
-  if (enable) {  sei();  }
-  else {         cli();  }
-}
-
-
-
-
-/****************************************************************************************************
  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄        ▄  ▄▄▄▄▄▄▄▄▄▄▄  ▄▄▄▄▄▄▄▄▄▄▄ 
 ▐░░░░░░░░░░░▌▐░░▌      ▐░▌▐░░░░░░░░░░░▌▐░░░░░░░░░░░▌
  ▀▀▀▀█░█▀▀▀▀ ▐░▌░▌     ▐░▌ ▀▀▀▀█░█▀▀▀▀  ▀▀▀▀█░█▀▀▀▀ 
@@ -210,29 +150,6 @@ void StaticHub::off_class_interrupts(bool enable) {
 StaticHub bootstrap and setup fxns. This code is only ever called to initiallize this or that thing,
   and then becomes inert.
 ****************************************************************************************************/
-
-/*
-* When the system comes to life, we will want to setup some periodic schedules.
-* Even for schedules that are meant to be one-shots, we will try to avoid a malloc()/free()
-*   cycle if it's going to be a regular event. Just pre-build some schedules that we know
-*   we will need and let them sit dormant until needed.
-*/
-void StaticHub::initSchedules(void) {
-  // This schedule marches the data into the USB VCP at a throttled rate.
-  pid_log_moderator = __scheduler.createSchedule(8,  -1, false, stdout_funnel);
-  //__scheduler.delaySchedule(pid_log_moderator, 5000);
-  //__scheduler.disableSchedule(pid_log_moderator);
-}
-
-
-
-/*
-* The last step in our bootstrap is to call this function. By this point, all peripherals and GPIO
-*   should have been claimed and setup. Now we need to conf the interrupts we want.
-*/
-void StaticHub::nvicConf() volatile {
-}
-
   
 /*
 * The primary init function. Calling this will bring the entire system online if everything is
@@ -240,11 +157,6 @@ void StaticHub::nvicConf() volatile {
 */
 int8_t StaticHub::bootstrap() {
   log_buffer.concatf("\n\n%s v%s    Build date: %s %s\nBootstrap beginning...\n", IDENTITY_STRING, VERSION_STRING, __DATE__, __TIME__);
-
-  // One of the first things we need to do is populate the EventManager with all of the
-  // message codes that come with this firmware.
-  int mes_count = sizeof(message_defs_dev_specific) / sizeof(MessageTypeDef);
-  ManuvrMsg::registerMessages(message_defs_dev_specific, mes_count);
 
   event_manager.subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
   event_manager.subscribe((EventReceiver*) this);            // Subscribe StaticHub as top priority in EventManager.
@@ -265,7 +177,9 @@ int8_t StaticHub::bootstrap() {
   ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
   
   platformInit();    // Start the platform-specific machinery.
-  initSchedules();   // We know we will need some schedules...
+  
+  // We know we will need some schedules...
+  pid_log_moderator = __scheduler.createSchedule(8,  -1, false, stdout_funnel);
 
 //  mgc3130->init();
 
@@ -294,6 +208,7 @@ StaticHub* StaticHub::getInstance() {
 StaticHub::StaticHub() {
   StaticHub::INSTANCE = this;
   scheduler = &__scheduler;
+  bootstrap();
 }
 
 
@@ -329,8 +244,7 @@ MGC3130*      StaticHub::fetchMGC3130(void) {       return mgc3130;          }
 *   one-shot schedule and performs all of the cleanup for latent consequences of bootstrap().
 */
 int8_t StaticHub::bootComplete() {
-  //EventReceiver::bootComplete()  <--- Note that we aren't going to do this. We already know about the scheduler.
-  off_class_interrupts(true);  // Now configure interrupts, lift interrupt masks, and let the madness begin.
+  maskableInterrupts(true);  // Now configure interrupts, lift interrupt masks, and let the madness begin.
   return 1;
 }
 
@@ -371,7 +285,6 @@ int8_t StaticHub::callback_proc(ManuvrEvent *event) {
 
 
 int8_t StaticHub::notify(ManuvrEvent *active_event) {
-  StringBuilder output;
   int8_t return_value = 0;
   
   switch (active_event->event_code) {
@@ -379,26 +292,6 @@ int8_t StaticHub::notify(ManuvrEvent *active_event) {
       last_user_input.concatHandoff(&usb_rx_buffer);
       procDirectDebugInstruction(&last_user_input);
       return_value++;
-      break;
-    case MANUVR_MSG_SYS_REBOOT:
-      maskable_interrupts(false);
-      reboot();
-      break;
-    case MANUVR_MSG_SYS_BOOTLOADER:
-      maskable_interrupts(false);
-      jumpToBootloader();
-      break;
-
-
-    case MANUVR_MSG_RNG_BUFFER_EMPTY:
-      output.concatf("RNG underrun.\n");
-      break;
-
-      
-    case MANUVR_MSG_SESS_ESTABLISHED:
-      // When we see session establishment, we broadcast our
-      // legends, and self-describe.
-      
       break;
 
     case MANUVR_MSG_SYS_ISSUE_LOG_ITEM:
@@ -415,12 +308,8 @@ int8_t StaticHub::notify(ManuvrEvent *active_event) {
       return_value += EventReceiver::notify(active_event);
       break;
   }
-  if (output.length() > 0) {    StaticHub::log(&output);  }
   return return_value;
 }
-
-
-
 
 
 
@@ -443,15 +332,6 @@ A quick note is in order. These functions are static class members that are call
 
 TODO: Keep them as short as possible.                                                             
 ****************************************************************************************************/
-
-
-/*
-* Called from the SysTick handler once per ms.
-*/
-volatile void StaticHub::advanceScheduler(void) {
-  // No watchdog timer on this platform. Therefore, we call
-  //   the scheduler from the main loop.
-}
 
 
 /*
@@ -610,46 +490,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
       }
       else {
         printDebug(&local_log);
-      }
-      break;
-
-    case 'o':
-      if (temp_byte) {
-        event = new ManuvrEvent(MANUVR_MSG_SCHED_PROFILER_STOP);
-        event->addArg(temp_byte);
-
-        local_log.concatf("Stopped profiling schedule %d\n", temp_byte);
-        event->printDebug(&local_log);
-      }
-      break;
-    case 'O':
-      if (temp_byte) {
-        event = new ManuvrEvent(MANUVR_MSG_SCHED_PROFILER_START);
-        event->addArg(temp_byte);
-
-        local_log.concatf("Now profiling schedule %d\n", temp_byte);
-        event->printDebug(&local_log);
-      }
-      break;
-
-    case 'P':
-      if (1 == temp_byte) {
-        event = new ManuvrEvent(MANUVR_MSG_SCHED_DUMP_META);
-        raiseEvent(event);   // Raise an event with a message. No need to clean it up.
-      }
-      else if (2 == temp_byte) {
-        event = new ManuvrEvent(MANUVR_MSG_SCHED_DUMP_SCHEDULES);
-        raiseEvent(event);   // Raise an event with a message. No need to clean it up.
-      }
-      else if (3 == temp_byte) {
-        event = new ManuvrEvent(MANUVR_MSG_SCHED_PROFILER_DUMP);
-        raiseEvent(event);   // Raise an event with a message. No need to clean it up.
-      }
-      else if (4 == temp_byte) {
-        //ManuvrEvent *deferred = new ManuvrEvent(MANUVR_MSG_SCHED_DUMP_META);
-        //event = new ManuvrEvent(MANUVR_MSG_SCHED_DEFERRED_EVENT);
-        //event->addArg(deferred);
-        //EventManager::raiseEvent(event);   // Raise an event with a message. No need to clean it up.
       }
       break;
 

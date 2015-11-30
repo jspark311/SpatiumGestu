@@ -93,10 +93,6 @@ class StaticHub : public EventReceiver {
 
     MGC3130*    fetchMGC3130(void);
     
-    // Volatile statics that serve as ISRs...
-    volatile static void advanceScheduler(void);
-    
-
     /* Overrides from EventReceiver */
     const char* getReceiverName();
     void printDebug(StringBuilder*);
@@ -123,22 +119,13 @@ class StaticHub : public EventReceiver {
 
     // Scheduler PIDs that will be heavilly used...
     uint32_t pid_log_moderator;
-    uint32_t pid_prog_run_delay;
-    
+
     MCP73833* mcp73833;
     MGC3130*  mgc3130;
     INA219*   ina219;
     ADP8866*  adp8866;
-
-    // These functions handle various stages of bootstrap...
-    void nvicConf(void) volatile;         // We call this once on bootstrap. Sets up IRQs not covered by other classes.
-
-    void initSchedules(void);    // We call this once on bootstrap. Sets up all schedules.
     
     void procDirectDebugInstruction(StringBuilder*);
-    
-    void off_class_interrupts(bool enable);
-    void maskable_interrupts(bool enable);
 };
 
 #ifdef __cplusplus

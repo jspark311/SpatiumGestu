@@ -208,11 +208,33 @@ void setPinFxn(uint8_t pin, FunctionPointer fxn) {
 * Misc                                                                                              *
 ****************************************************************************************************/
 
-volatile void jumpToBootloader() {  _reboot_Teensyduino_();                 }
-volatile void reboot() {            *((uint32_t *)0xE000ED0C) = 0x5FA0004;  }
+volatile void jumpToBootloader() {
+  cli();  
+  _reboot_Teensyduino_();
+}
+
+volatile void reboot() {
+  cli();
+  *((uint32_t *)0xE000ED0C) = 0x5FA0004;
+}
 
 void globalIRQEnable() {     sei();    }
 void globalIRQDisable() {    cli();    }
+
+/*
+* Call this with a boolean to enable or disable maskable interrupts globally.
+* NOTE: This includes USB and SysTick. So no host communication, and no scheduler.
+*       Events ought to still work, however.
+*/
+void maskableInterrupts(bool enable) {
+  if (enable) {
+    sei();
+  }
+  else {
+    cli();
+  }
+}
+
 
 
 /**

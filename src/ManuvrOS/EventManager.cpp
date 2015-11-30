@@ -519,6 +519,13 @@ int8_t EventManager::procIdleFlags() {
           }
           break;
       
+        case MANUVR_MSG_SYS_REBOOT:
+          reboot();
+          break;
+        case MANUVR_MSG_SYS_BOOTLOADER:
+          jumpToBootloader();
+          break;
+      
         case MANUVR_MSG_SYS_ADVERTISE_SRVC:  // Some service is annoucing its arrival.
         case MANUVR_MSG_SYS_RETRACT_SRVC:    // Some service is annoucing its departure.
           if (0 < active_event->argCount()) {
