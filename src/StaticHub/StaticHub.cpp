@@ -28,7 +28,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 #include "ManuvrOS/Drivers/i2c-adapter/i2c-adapter.h"
 #include <ManuvrOS/EventManager.h>
-#include <ManuvrOS/XenoSession/XenoSession.h>
 
 #include <unistd.h>
 
@@ -41,40 +40,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 extern volatile I2CAdapter* i2c;
 
 
-
-/****************************************************************************************************
-* Scheduler callbacks. Please note that these are NOT part of StaticHub.                            *
-****************************************************************************************************/
-/*
-* Scheduler callback
-* This gets called periodically to moderate traffic volume across the USB link
-*   until I figure out how to sink a hook into the DMA interrupt to take its place.
-*/
-void stdout_funnel() {
-  if (StaticHub::log_buffer.count()) {
-    if (!StaticHub::getInstance()->getVerbosity()) {
-      StaticHub::log_buffer.clear();
-    }
-    else {
-      //printf("%s", StaticHub::log_buffer.position(0));
-      Serial.print((char*) StaticHub::log_buffer.position(0));
-      StaticHub::log_buffer.drop_position(0);
-    }
-  }
-  else {
-    StaticHub::getInstance()->disableLogCallback();
-  }
-}
-
-
-
 /****************************************************************************************************
 * Static initializers                                                                               *
 ****************************************************************************************************/
 volatile StaticHub* StaticHub::INSTANCE = NULL;
-
-bool StaticHub::mute_logger = false;
-
 
 
 /****************************************************************************************************
@@ -87,32 +56,21 @@ StringBuilder StaticHub::log_buffer;
 */
 volatile void StaticHub::log(int severity, const char *str) {
   if (!INSTANCE->verbosity) return;
-  if (log_buffer.count() == 0) ((StaticHub*) INSTANCE)->__scheduler.enableSchedule(INSTANCE->pid_log_moderator);
   log_buffer.concat(str);
 }
 
 volatile void StaticHub::log(char *str) {
   if (!INSTANCE->verbosity) return;
-  if (log_buffer.count() == 0) ((StaticHub*) INSTANCE)->__scheduler.enableSchedule(INSTANCE->pid_log_moderator);
   log_buffer.concat(str);
 }
 
 volatile void StaticHub::log(const char *str) {
   if (!INSTANCE->verbosity) return;
-  if (log_buffer.count() == 0) ((StaticHub*) INSTANCE)->__scheduler.enableSchedule(INSTANCE->pid_log_moderator);
   log_buffer.concat(str);
 }
 
 volatile void StaticHub::log(const char *fxn_name, int severity, const char *str, ...) {
   if (!INSTANCE->verbosity) return;
-  //log_buffer.concat("%d  %s:\t", severity, fxn_name);
-  if (log_buffer.count() == 0) {
-    if (NULL != INSTANCE) {
-       if (INSTANCE->pid_log_moderator) {
-         ((StaticHub*) INSTANCE)->__scheduler.enableSchedule(INSTANCE->pid_log_moderator);
-       }
-     }
-  }
   log_buffer.concatf("%d  %s:\t", severity, fxn_name);
   va_list marker;
   
@@ -123,15 +81,8 @@ volatile void StaticHub::log(const char *fxn_name, int severity, const char *str
 
 volatile void StaticHub::log(StringBuilder *str) {
   if (!INSTANCE->verbosity) return;
-  if (log_buffer.count() == 0) ((StaticHub*) INSTANCE)->__scheduler.enableSchedule(INSTANCE->pid_log_moderator);
   log_buffer.concatHandoff(str);
 }
-
-
-void StaticHub::disableLogCallback(){
-  __scheduler.disableSchedule(pid_log_moderator);
-}
-
 
 
 /****************************************************************************************************
@@ -178,9 +129,6 @@ int8_t StaticHub::bootstrap() {
   
   platformInit();    // Start the platform-specific machinery.
   
-  // We know we will need some schedules...
-  pid_log_moderator = __scheduler.createSchedule(8,  -1, false, stdout_funnel);
-
 //  mgc3130->init();
 
   ManuvrEvent *boot_completed_ev = EventManager::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
@@ -300,7 +248,6 @@ int8_t StaticHub::notify(ManuvrEvent *active_event) {
         if (0 == active_event->getArgAs(&log_item)) {
           log_buffer.concatHandoff(log_item);
         }
-        __scheduler.enableSchedule(pid_log_moderator);
       }
       break;
       
@@ -496,7 +443,6 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
 
     case 'v':           // Set log verbosity.
       parse_mule.concat(str);
-      local_log.concatf("parse_mule split (%s) into %d positions. \n", str, parse_mule.split(" "));
       parse_mule.drop_position(0);
       
       event = new ManuvrEvent(MANUVR_MSG_SYS_LOG_VERBOSITY);

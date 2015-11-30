@@ -408,11 +408,10 @@ void Scheduler::advanceScheduler() {
   //}
   if (bistable_skip_detect) {
     // Failsafe block
+#ifdef STM32F4XX
     if (skipped_loops > 5000) {
       // TODO: We are hung in a way that we probably cannot recover from. Reboot...
-#ifdef STM32F4XX
       jumpToBootloader();
-#endif
     }
     else if (skipped_loops == 2000) {
       printf("Hung scheduler...\n");
@@ -435,6 +434,7 @@ void Scheduler::advanceScheduler() {
       printf("%s\n", (char*) output.string());
     }
     skipped_loops++;
+#endif
   }
   else {
     bistable_skip_detect = true;

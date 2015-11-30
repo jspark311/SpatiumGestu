@@ -32,12 +32,13 @@ OUTPUT_PATH        = build
 
 
 MCU                = cortex-m4
-CPU_SPEED          = 48000000
+CPU_SPEED          = 96000000
 OPTIMIZATION       = -Os
 C_STANDARD         = gnu99
 CPP_STANDARD       = gnu++11
 FORMAT             = ihex
 
+F_CPU = $(CPU_SPEED)
 
 ###########################################################################
 # Source files, includes, and linker directives...
@@ -48,7 +49,7 @@ INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I./ -Isrc/
 INCLUDES    += -I$(TEENSY_PATH)libraries/FreeRTOS_ARM/
 
-LD_FILE     = $(TEENSY_PATH)cores/teensy3/mk20dx128.ld
+LD_FILE     = src/mk20dx128.ld
 
 # Libraries to link
 LIBS = -lm -lstdc++ -larm_cortexM4l_math -lc

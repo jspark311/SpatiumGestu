@@ -64,7 +64,6 @@ class MCP73833;
 class StaticHub : public EventReceiver {
   public:
     static StringBuilder log_buffer;
-    static bool mute_logger; 
 
     StaticHub(void);
     static StaticHub* getInstance(void);
@@ -100,9 +99,6 @@ class StaticHub : public EventReceiver {
     int8_t callback_proc(ManuvrEvent *);
 
 
-    void disableLogCallback();
-
-
   protected:
     int8_t bootComplete();       // Called as a result of bootstrap completed being raised.
 
@@ -116,9 +112,6 @@ class StaticHub : public EventReceiver {
 
     StringBuilder usb_rx_buffer;
     StringBuilder last_user_input;
-
-    // Scheduler PIDs that will be heavilly used...
-    uint32_t pid_log_moderator;
 
     MCP73833* mcp73833;
     MGC3130*  mgc3130;

@@ -4,8 +4,6 @@
 #include <ManuvrOS/Scheduler.h>
 #include <StringBuilder/StringBuilder.h>
 
-// Pin declarations
-
 #define HOST_BAUD_RATE  115200
 
 
@@ -15,11 +13,15 @@ EventManager* event_manager = NULL;
 
 
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
-IntervalTimer timer0;               // Scheduler
-void timerCallbackScheduler() {  if (scheduler) scheduler->advanceScheduler(); }
-
 const int PIN_LED1        = 13;
 const int MANUVR_LOGO_LED = 4;
+
+#include "FreeRTOS_ARM.h"
+
+void mainTaskFxn( void *pvParameters );
+void schedulerTaskFxn( void *pvParameters );
+void loggerTask( void *pvParameters );
+
 
 #else
 const int MANUVR_LOGO_LED = 4;
@@ -59,23 +61,92 @@ void setup() {
   pinMode(PIN_LED1,         OUTPUT);
   pinMode(MANUVR_LOGO_LED,  OUTPUT);
   
-  sh = StaticHub::getInstance();
+  #if defined(__MK20DX256__) | defined(__MK20DX128__)
+  
+  // Create the main thread.
+  xTaskCreate(mainTaskFxn, "Main task", 330, (void*)sh, 1, NULL );
+  
+  // Create the scheduler thread. Let's see if this flies....
+  xTaskCreate(schedulerTaskFxn, "Scheduler task", 40, (void*)scheduler, 1, NULL );
+  xTaskCreate(loggerTask, "Logger task", 40, (void*)sh, 1, NULL);
+  
+  vTaskStartScheduler();
+  for( ;; );
+  
+  #elif defined(_BOARD_FUBARINO_MINI_)
+  attachCoreTimerService(timerCallbackScheduler);
+  #endif
+}
 
+
+
+
+#if defined(__MK20DX256__) | defined(__MK20DX128__)
+
+void mainTaskFxn(void *pvParameters) {
+  unsigned char* ser_buffer = (unsigned char*) alloca(255);
+  int bytes_read = 0;
+  
+  sh = StaticHub::getInstance();
   event_manager = sh->fetchEventManager();
   scheduler     = sh->fetchScheduler();
   
   scheduler->createSchedule(40, -1, false, logo_fade);
   scheduler->createSchedule(25, -1, false, blink_led);
-#if defined(__MK20DX256__) | defined(__MK20DX128__)
-  timer0.begin(timerCallbackScheduler, 1000);   // Turn on the periodic interrupts...
-#elif defined(_BOARD_FUBARINO_MINI_)
-  attachCoreTimerService(timerCallbackScheduler);
-#endif
-  sei();
+
+  /* As per most tasks, this task is implemented in an infinite loop. */
+  for( ;; ) {
+    if (sh) {
+      sh->fetchEventManager()->procIdleFlags();
+      sh->fetchScheduler()->serviceScheduledEvents();
+      
+      if (Serial.available()) {
+        // Zero the buffer.
+        bytes_read = 0;
+        for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
+        char c = 0;
+        while (Serial.available()) {
+          c = Serial.read();
+          *(ser_buffer+bytes_read++) = c;
+        }
+        
+        sh->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
+      }
+    }
+  }
 }
 
 
+void schedulerTaskFxn(void *pvParameters) {
+  /* As per most tasks, this task is implemented in an infinite loop. */
+  for( ;; ) {
+    if (sh) sh->fetchScheduler()->advanceScheduler();
+    vTaskDelay( 2 / portTICK_PERIOD_MS );
+  }
+}
 
+
+void loggerTask(void *pvParameters) {
+  /* As per most tasks, this task is implemented in an infinite loop. */
+  for(;;) {
+    if (StaticHub::log_buffer.count()) {
+      if (!sh->getVerbosity()) {
+        StaticHub::log_buffer.clear();
+      }
+      else {
+        //printf("%s", StaticHub::log_buffer.position(0));
+        Serial.print((char*) StaticHub::log_buffer.position(0));
+        StaticHub::log_buffer.drop_position(0);
+      }
+    }
+  }
+}
+
+void loop() {
+}
+
+
+#elif defined(_BOARD_FUBARINO_MINI_)
 
 void loop() {
   unsigned char* ser_buffer = (unsigned char*) alloca(255);
@@ -100,3 +171,4 @@ void loop() {
   }
 }
 
+#endif
