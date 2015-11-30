@@ -37,15 +37,6 @@ This is the Spatium Gestu version of StaticHub.
   #include <stdio.h>
   #include <stdint.h>
 
-  #define LOG_EMERG   0    /* system is unusable */
-  #define LOG_ALERT   1    /* action must be taken immediately */
-  #define LOG_CRIT    2    /* critical conditions */
-  #define LOG_ERR     3    /* error conditions */
-  #define LOG_WARNING 4    /* warning conditions */
-  #define LOG_NOTICE  5    /* normal but significant condition */
-  #define LOG_INFO    6    /* informational */
-  #define LOG_DEBUG   7    /* debug-level messages */
-
   #include <ManuvrOS/Scheduler.h>
   #include <ManuvrOS/EventManager.h>
   #include <StringBuilder/StringBuilder.h>
@@ -64,22 +55,6 @@ class ADP8866;
 class INA219;
 class MCP73833;
 
-/*
-* These are just lables. We don't really ever care about the *actual* integers being defined here. Only
-*   their consistency.
-*/
-#define MANUVR_RTC_STARTUP_UNINITED       0x00000000
-#define MANUVR_RTC_STARTUP_UNKNOWN        0x23196400
-#define MANUVR_RTC_OSC_FAILURE            0x23196401
-#define MANUVR_RTC_STARTUP_GOOD_UNSET     0x23196402
-#define MANUVR_RTC_STARTUP_GOOD_SET       0x23196403
-
-
-/*
-* These are constants where we care about the number.
-*/
-#define STATICHUB_RNG_CARRY_CAPACITY           10     // How many random numbers should StaticHub cache?
-
 
 
 /*
@@ -87,9 +62,6 @@ class MCP73833;
 */
 class StaticHub : public EventReceiver {
   public:
-    volatile static uint32_t millis_since_reset;
-    volatile static uint8_t  watchdog_mark;
-
     static StringBuilder log_buffer;
     static bool mute_logger; 
 
@@ -104,20 +76,6 @@ class StaticHub : public EventReceiver {
     volatile static void log(char *str);                                           // Pass-through to the logger class, whatever that happens to be.
     volatile static void log(StringBuilder *str);
     
-    /*
-    * Nice utility functions.
-    */
-    static uint32_t randomInt(void);                                // Fetches one of the stored randoms and blocks until one is available.
-    static volatile bool provide_random_int(uint32_t);              // Provides a new random to StaticHub from the RNG ISR.
-    static volatile uint32_t getStackPointer(void);                 // Returns the value of the stack pointer and prints some data.
-    
-        
-    bool setTimeAndDate(char*);   // Takes a string of the form given by RFC-2822: "Mon, 15 Aug 2005 15:52:01 +0000"   https://www.ietf.org/rfc/rfc2822.txt
-    uint32_t currentTimestamp(void);         // Returns an integer representing the current datetime.
-    void currentTimestamp(StringBuilder*);   // Same, but writes a string representation to the argument.
-    void currentDateTime(StringBuilder*);    // Writes a human-readable datetime to the argument.
-    
-
     // Call this to accumulate characters from the USB layer into a buffer.
     // Pass terminal=true to cause StaticHub to proc an accumulated command from the host PC.
     void feedUSBBuffer(uint8_t *buf, int len, bool terminal);
@@ -154,7 +112,6 @@ class StaticHub : public EventReceiver {
     
   private:
     volatile static StaticHub* INSTANCE;
-    volatile static uint32_t next_random_int[STATICHUB_RNG_CARRY_CAPACITY];  // Stores the last 10 random numbers.
 
     // Global system resource handles...
     EventManager event_manager;            // This is our asynchronous message queue. 
@@ -166,8 +123,6 @@ class StaticHub : public EventReceiver {
     // Scheduler PIDs that will be heavilly used...
     uint32_t pid_log_moderator;
     uint32_t pid_prog_run_delay;
-
-    uint32_t rtc_startup_state;
     
     MCP73833* mcp73833;
     MGC3130*  mgc3130;
@@ -178,10 +133,8 @@ class StaticHub : public EventReceiver {
     const char* getRTCStateString(uint32_t code);
 
     // These functions handle various stages of bootstrap...
-    void gpioSetup(void) volatile;        // We call this once on bootstrap. Sets up GPIO not covered by other classes.
     void nvicConf(void) volatile;         // We call this once on bootstrap. Sets up IRQs not covered by other classes.
-    void init_RNG(void) volatile;         // Fire up the random number generator.
-    void initRTC(void) volatile;          // We call this once on bootstrap. Sets up the RTC.
+
     void initSchedules(void);    // We call this once on bootstrap. Sets up all schedules.
     
     void procDirectDebugInstruction(StringBuilder*);

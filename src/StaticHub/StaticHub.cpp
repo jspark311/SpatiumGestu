@@ -24,18 +24,18 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
 #include "StaticHub/StaticHub.h"
+#include <ManuvrOS/Platform/Platform.h>
+
 #include "ManuvrOS/Drivers/i2c-adapter/i2c-adapter.h"
 #include <ManuvrOS/EventManager.h>
 #include <ManuvrOS/XenoSession/XenoSession.h>
 
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
-  #include <Time/Time.h>
 #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__) | defined(__PIC32MZ__)
-  #include <wiring.h>
 #else
   #include <sys/time.h>
 #endif  
-  
+
 #include <unistd.h>
 
 #include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
@@ -47,8 +47,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 extern volatile I2CAdapter* i2c;
 uint32_t profiler_mark_0 = 0;
 uint32_t profiler_mark_1 = 0;
-
-unsigned long start_time_micros = 0;
 
 
 
@@ -100,9 +98,6 @@ void stdout_funnel() {
 * Static initializers                                                                               *
 ****************************************************************************************************/
 volatile StaticHub* StaticHub::INSTANCE = NULL;
-volatile uint32_t StaticHub::next_random_int[STATICHUB_RNG_CARRY_CAPACITY];
-volatile uint32_t StaticHub::millis_since_reset = 1;   // Start at one because WWDG.
-volatile uint8_t  StaticHub::watchdog_mark = 42;
 
 bool StaticHub::mute_logger = false;
 
@@ -181,114 +176,6 @@ void StaticHub::disableLogCallback(){
 
 
 /****************************************************************************************************
-* Various small utility functions...                                                                *
-****************************************************************************************************/
-
-/**
-* Sometimes we question the size of the stack.
-*
-* @return the stack pointer at call time.
-*/
-volatile uint32_t StaticHub::getStackPointer(void) {
-  uint32_t test;
-  test = (uint32_t) &test;  // Store the pointer.
-  return test;
-}
-
-
-/**
-* Called by the RNG ISR to provide new random numbers to StaticHub.
-*
-* @param    nu_rnd The supplied random number.
-* @return   True if the RNG should continue supplying us, false if it should take a break until we need more.
-*/
-volatile bool StaticHub::provide_random_int(uint32_t nu_rnd) {
-  for (uint8_t i = 0; i < STATICHUB_RNG_CARRY_CAPACITY; i++) {
-    if (next_random_int[i] == 0) {
-      next_random_int[i] = nu_rnd;
-      return (i == STATICHUB_RNG_CARRY_CAPACITY-1) ? false : true;
-    }
-  }
-  return false;
-}
-
-
-/**
-* Dead-simple interface to the RNG. Despite the fact that it is interrupt-driven, we may resort
-*   to polling if random demand exceeds random supply. So this may block until a random number
-*   is actually availible (next_random_int != 0).
-*
-* @return   A 32-bit unsigned random number. This can be cast as needed.
-*/
-uint32_t StaticHub::randomInt(void) {
-  uint32_t return_value = rand();
-  return return_value;
-}
-
-
-/*
-* Given an RFC2822 datetime string, decompose it and set the time and date.
-* We would prefer RFC2822, but we should try and cope with things like missing
-*   time or timezone.
-* Returns false if the date failed to set. True if it did.
-*/
-bool StaticHub::setTimeAndDate(char* nu_date_time) {
-  return false;
-}
-
-
-/*
-* Returns an integer representing the current datetime.
-*/
-uint32_t StaticHub::currentTimestamp(void) {
-  uint32_t return_value = 0;
-  return return_value;
-}
-
-/*
-* Same, but writes a string representation to the argument.
-*/
-void StaticHub::currentTimestamp(StringBuilder* target) {
-}
-
-/*
-* Writes a human-readable datetime to the argument.
-* Returns ISO 8601 datetime string.
-* 2004-02-12T15:19:21+00:00
-*/
-void StaticHub::currentDateTime(StringBuilder* target) {
-	if (target != NULL) {
-	  #ifdef STM32F4XX
-		  RTC_TimeTypeDef RTC_TimeStructure;
-		  RTC_DateTypeDef RTC_DateStructure;
-		  RTC_GetTimeStamp(RTC_Format_BIN, &RTC_TimeStructure, &RTC_DateStructure);
-		  
-		  TM_RTC_Time_t current_datetime;
-		  TM_RTC_GetDateTime(&current_datetime, TM_RTC_Format_BIN);
-		  target->concatf("%02d.%02d.%04d %02d:%02d:%02d  Unix: %u\n",
-                  current_datetime.date,
-                  current_datetime.month,
-                  current_datetime.year + 2000,
-                  current_datetime.hours,
-                  current_datetime.minutes,
-                  current_datetime.seconds,
-                  current_datetime.unix);
-		  
-		  target->concatf("%d-%d-%dT", RTC_DateStructure.RTC_Year, RTC_DateStructure.RTC_Month, RTC_DateStructure.RTC_Date);
-		  target->concatf("%d:%d:%d+00:00", RTC_TimeStructure.RTC_Hours, RTC_TimeStructure.RTC_Minutes, RTC_TimeStructure.RTC_Seconds);
-		#elif defined(__MK20DX256__) | defined(__MK20DX128__)
-		  target->concatf("%04d-%02d-%02dT", year(), month(), day());
-		  target->concatf("%02d:%02d:%02d+00:00", hour(), minute(), second());
-		#else
-		  target->concat("<UNSUPPORTED PLATFORM>\n");
-		#endif
-	}
-}
-
-
-
-
-/****************************************************************************************************
 * Functions that deal with clock and mode switching...                                              *
 ****************************************************************************************************/
 
@@ -324,23 +211,6 @@ void StaticHub::off_class_interrupts(bool enable) {
 }
 
 
-volatile void jumpToBootloader(void) {
-  #if defined(__MK20DX256__) | defined(__MK20DX128__)
-    _reboot_Teensyduino_();
-  #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
-    executeSoftReset(0);
-  #endif
-}
-
-
-volatile void reboot(void) {
-  #if defined(__MK20DX256__) | defined(__MK20DX128__)
-    *((uint32_t *)0xE000ED0C) = 0x5FA0004;
-  #elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__)
-    executeSoftReset(ENTER_BOOTLOADER_ON_BOOT);
-  #endif
-}
-
 
 
 /****************************************************************************************************
@@ -371,55 +241,6 @@ void StaticHub::initSchedules(void) {
   pid_log_moderator = __scheduler.createSchedule(8,  -1, false, stdout_funnel);
   //__scheduler.delaySchedule(pid_log_moderator, 5000);
   //__scheduler.disableSchedule(pid_log_moderator);
-}
-
-
-/*
-* Init the RNG. Short and sweet.
-*/
-void StaticHub::init_RNG(void) volatile {
-  // Zero the random number cache.
-  for (uint8_t i = 0; i < STATICHUB_RNG_CARRY_CAPACITY; i++) next_random_int[i] = 0;
-  
-  #ifdef ARDUINO
-    //randomSeed(analogRead(0));
-  #endif
-}
-
-
-/*
-* Setup the realtime clock module.
-* Informed by code here:
-* http://autoquad.googlecode.com/svn/trunk/onboard/rtc.c
-*/
-#if defined(__MK20DX256__) | defined(__MK20DX128__)
-  time_t getTeensy3Time() {   return Teensy3Clock.get();   }
-#endif
-
-void StaticHub::initRTC(void) volatile {
-  #if defined(__MK20DX256__) | defined(__MK20DX128__)
-    setSyncProvider(getTeensy3Time);
-    if (timeStatus() != timeSet) {
-      rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_UNSET;
-    }
-    else {
-      rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_SET;
-    }
-  #endif
-}
-
-
-
-/*
-* This fxn should be called once on boot to setup the CPU pins that are not claimed
-*   by other classes. GPIO pins at the command of this-or-that class should be setup 
-*   in the class that deals with them. An example of this would be the CPLD pins (GPIO
-*   case) or the i2c pins (AF case).
-* Pending peripheral-level init of pins, we should just enable everything and let 
-*   individual classes work out their own requirements.
-* Since we are using a 100-pin QFP part, we don't have ports higher than E.
-*/
-void StaticHub::gpioSetup() volatile {
 }
 
 
@@ -462,8 +283,7 @@ int8_t StaticHub::bootstrap() {
   ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
   ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
   
-  init_RNG();      // Fire up the RNG...
-  initRTC();
+  platformInit();    // Start the platform-specific machinery.
   initSchedules();   // We know we will need some schedules...
 
 //  mgc3130->init();
@@ -493,7 +313,6 @@ StaticHub* StaticHub::getInstance() {
 StaticHub::StaticHub() {
   StaticHub::INSTANCE = this;
   scheduler = &__scheduler;
-  start_time_micros = micros();
 }
 
 
@@ -716,7 +535,6 @@ void StaticHub::printDebug(StringBuilder* output) {
   output->concatf("--- millis()            0x%08x\n", millis());
   output->concatf("--- micros()            0x%08x\n", micros());
   currentDateTime(output);
-  output->concatf("\nrtc_startup_state %s\n", getRTCStateString(rtc_startup_state));
 }
 
 
@@ -751,9 +569,9 @@ void StaticHub::procDirectDebugInstruction(StringBuilder* input) {
 
     case '6':        // Read so many random integers...
       { // TODO: I don't think the RNG is ever being turned off. Save some power....
-        temp_byte = (temp_byte == 0) ? STATICHUB_RNG_CARRY_CAPACITY : temp_byte;
+        temp_byte = (temp_byte == 0) ? PLATFORM_RNG_CARRY_CAPACITY : temp_byte;
         for (uint8_t i = 0; i < temp_byte; i++) {
-          uint32_t x = StaticHub::randomInt();
+          uint32_t x = randomInt();
           if (x) {
             local_log.concatf("Random number: 0x%08x\n", x);
           }

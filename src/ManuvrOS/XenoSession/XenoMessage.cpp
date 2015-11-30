@@ -25,6 +25,7 @@ XenoMessage is the class that is the interface between ManuvrEvents and
 
 #include "XenoSession.h"
 #include "StaticHub/StaticHub.h"
+#include "ManuvrOS/Platform/Platform.h"
 
 
 XenoMessage::XenoMessage() {
@@ -40,7 +41,7 @@ XenoMessage::XenoMessage(ManuvrEvent* existing_event) {
   // Should maybe set a flag in the event to indicate that we are now responsible
   //   for memory upkeep? Don't want it to get jerked out from under us and cause a crash.
   event = existing_event;
-  unique_id = (uint16_t) StaticHub::randomInt();
+  unique_id = (uint16_t) randomInt();
   proc_state = XENO_MSG_PROC_STATE_SERIALIZING;  // Implies we are sending.
   message_code        = existing_event->event_code;     // 
   serialize();   // We should do this immediately to preserve the message.
@@ -83,7 +84,7 @@ void XenoMessage::__class_initializer() {
 */
 void XenoMessage::provideEvent(ManuvrEvent *existing_event) {
   event = existing_event;
-  unique_id = (uint16_t) StaticHub::randomInt();
+  unique_id = (uint16_t) randomInt();
   proc_state = XENO_MSG_PROC_STATE_SERIALIZING;  // Implies we are sending.
   serialize();   // We should do this immediately to preserve the message.
   event = NULL;  // Don't risk the event getting ripped out from under us.

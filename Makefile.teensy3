@@ -99,6 +99,7 @@ CPP_FLAGS += $(CFLAGS)
 
 MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
+MANUVROS_SRCS += src/ManuvrOS/Platform/Platform.cpp src/ManuvrOS/Platform/PlatformTeensy3.cpp 
 
 I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
 I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
