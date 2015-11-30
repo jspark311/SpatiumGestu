@@ -380,28 +380,38 @@ int XenoMessage::feedBuffer(StringBuilder *sb_buf) {
     if (checksum_c == checksum_i) {
       // Checksum passes. Build the event.
       if (event != NULL) {
+        #ifdef __MANUVR_DEBUG
         output.concat("XenoMessage::feedBuffer(): Ooops. Clobbered an event pointer. Expect leaks...\n");
+        #endif
       }
       event = EventManager::returnEvent(message_code);
       switch (proc_state) {
         case XENO_MSG_PROC_STATE_RECEIVING:
           proc_state = XENO_MSG_PROC_STATE_AWAITING_UNSERIALIZE;
+          #ifdef __MANUVR_DEBUG
           output.concat("XenoMessage::feedBuffer() Ready to unserialize...\n");
+          #endif
           break;
         case XENO_MSG_PROC_STATE_RECEIVING_REPLY:
           proc_state = XENO_MSG_PROC_STATE_REPLY_RECEIVED;
+          #ifdef __MANUVR_DEBUG
           output.concat("XenoMessage::feedBuffer() Received reply!\n");
+          #endif
           break;
         default:
+          #ifdef __MANUVR_DEBUG
           output.concatf("XenoMessage::feedBuffer() Message received, and is ok, but not sure about state.... Is %s\n", XenoMessage::getMessageStateString(proc_state));
           StaticHub::log(&output);
+          #endif
           return -2;
       }
     }
     else {
       // TODO: We might send a retry request at this point...
       proc_state = XENO_MSG_PROC_STATE_AWAITING_REAP;
+      #ifdef __MANUVR_DEBUG
       output.concatf("XenoMessage::feedBuffer() Message failed to checksum. Got 0x%02x. Expected 0x%02x. \n", checksum_c, checksum_i);
+      #endif
     }
   }
   
