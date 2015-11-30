@@ -30,12 +30,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <ManuvrOS/EventManager.h>
 #include <ManuvrOS/XenoSession/XenoSession.h>
 
-#if defined(__MK20DX256__) | defined(__MK20DX128__)
-#elif defined(__PIC32MX2XX__) | defined(__PIC32MX3XX__) | defined(__PIC32MZ__)
-#else
-  #include <sys/time.h>
-#endif  
-
 #include <unistd.h>
 
 #include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
@@ -102,19 +96,6 @@ volatile StaticHub* StaticHub::INSTANCE = NULL;
 bool StaticHub::mute_logger = false;
 
 
-
-/****************************************************************************************************
-* Functions that convert from #define codes to something readable by a human...                     *
-****************************************************************************************************/
-const char* StaticHub::getRTCStateString(uint32_t code) {
-  switch (code) {
-    case MANUVR_RTC_STARTUP_UNKNOWN:     return "RTC_STARTUP_UNKNOWN";
-    case MANUVR_RTC_OSC_FAILURE:         return "RTC_OSC_FAILURE";
-    case MANUVR_RTC_STARTUP_GOOD_UNSET:  return "RTC_STARTUP_GOOD_UNSET";
-    case MANUVR_RTC_STARTUP_GOOD_SET:    return "RTC_STARTUP_GOOD_SET";
-    default:                             return "RTC_STARTUP_UNDEFINED";
-  }
-}
 
 
 
@@ -533,7 +514,7 @@ void StaticHub::printDebug(StringBuilder* output) {
   output->concatf("--- getStackPointer()   0x%08x\n---\n", getStackPointer());
 
   output->concatf("--- millis()            0x%08x\n", millis());
-  output->concatf("--- micros()            0x%08x\n", micros());
+  output->concatf("--- micros()            0x%08x\n\n\n", micros());
   currentDateTime(output);
 }
 

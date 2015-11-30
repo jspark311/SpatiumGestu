@@ -32,3 +32,19 @@ This file is meant to contain a set of common functions that are typically platf
 
 #include "Platform.h"
 
+
+
+
+/****************************************************************************************************
+* Functions that convert from #define codes to something readable by a human...                     *
+****************************************************************************************************/
+const char* getRTCStateString(uint32_t code) {
+  switch (code) {
+    case MANUVR_RTC_STARTUP_UNKNOWN:     return "RTC_UNKNOWN";
+    case MANUVR_RTC_OSC_FAILURE:         return "RTC_OSC_FAIL";
+    case MANUVR_RTC_STARTUP_GOOD_UNSET:  return "RTC_GOOD_UNSET";
+    case MANUVR_RTC_STARTUP_GOOD_SET:    return "RTC_GOOD_SET";
+    default:                             return "RTC_UNDEFINED";
+  }
+}
+

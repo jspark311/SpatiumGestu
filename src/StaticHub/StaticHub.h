@@ -29,17 +29,18 @@ This is the Spatium Gestu version of StaticHub.
 
 #include "FirmwareDefs.h"
 
-  // System-level includes.
-  #include <inttypes.h>
-  #include <stdlib.h>
-  #include <stdarg.h>
-  #include <string.h>
-  #include <stdio.h>
-  #include <stdint.h>
+// System-level includes.
+#include <inttypes.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdint.h>
 
-  #include <ManuvrOS/Scheduler.h>
-  #include <ManuvrOS/EventManager.h>
-  #include <StringBuilder/StringBuilder.h>
+#include <ManuvrOS/Platform/Platform.h>
+#include <ManuvrOS/Scheduler.h>
+#include <ManuvrOS/EventManager.h>
+#include <StringBuilder/StringBuilder.h>
 
 #ifdef ARDUINO
   #include <Arduino.h>
@@ -128,9 +129,6 @@ class StaticHub : public EventReceiver {
     MGC3130*  mgc3130;
     INA219*   ina219;
     ADP8866*  adp8866;
-
-    // These fxns do string conversion for integer type-codes, and are only useful for logging.
-    const char* getRTCStateString(uint32_t code);
 
     // These functions handle various stages of bootstrap...
     void nvicConf(void) volatile;         // We call this once on bootstrap. Sets up IRQs not covered by other classes.

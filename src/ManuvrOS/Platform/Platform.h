@@ -44,6 +44,8 @@ This file is meant to contain a set of common functions that are typically platf
 #include <string.h>
 #include <stdio.h>
 
+#include "StringBuilder/StringBuilder.h"
+
 #define LOG_EMERG   0    /* system is unusable */
 #define LOG_ALERT   1    /* action must be taken immediately */
 #define LOG_CRIT    2    /* critical conditions */
@@ -63,19 +65,15 @@ This file is meant to contain a set of common functions that are typically platf
 #define MANUVR_RTC_STARTUP_GOOD_UNSET     0x23196402
 #define MANUVR_RTC_STARTUP_GOOD_SET       0x23196403
 
-
-#include "StringBuilder/StringBuilder.h"
-
-#ifdef __cplusplus
- extern "C" {
-#endif 
-
-
 /*
 * These are constants where we care about the number.
 */
 #define PLATFORM_RNG_CARRY_CAPACITY           10     // How many random numbers should be cached?
 
+
+#ifdef __cplusplus
+ extern "C" {
+#endif 
 
 /*
 * Time and date
@@ -84,6 +82,9 @@ bool initPlatformRTC();       // We call this once on bootstrap. Sets up the RTC
 bool setTimeAndDate(char*);   // Takes a string of the form given by RFC-2822: "Mon, 15 Aug 2005 15:52:01 +0000"   https://www.ietf.org/rfc/rfc2822.txt
 uint32_t epochTime();         // Returns an integer representing the current datetime.
 void currentDateTime(StringBuilder*);    // Writes a human-readable datetime to the argument.
+
+// Performs string conversion for integer type-code, and is only useful for logging.
+const char* getRTCStateString(uint32_t code);
 
 /*
 * Watchdog timer.
