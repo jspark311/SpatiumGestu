@@ -9,10 +9,6 @@ This is one of the files that the application author is required to provide. Thi
 
 */
 
-#ifndef __FIRMWARE_DEFS_H
-#define __FIRMWARE_DEFS_H
-
-
 /*
 * These are required fields.
 *
@@ -28,30 +24,3 @@ This is one of the files that the application author is required to provide. Thi
 //#define EXTENDED_DETAIL_STRING    "RasPiBuild"           // Optional. User-defined.
 #define PROTOCOL_VERSION          0x00000001             // The protocol version we are using.
 
-
-
-/* Codes that are specific to Spatium Gestu */
-
-#if defined(__MK20DX256__) | defined(__MK20DX128__)
-#else
-inline void sei() {};
-inline void cli() {};
-#endif
-
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// Function prototypes
-#ifndef TEST_BENCH
-  volatile void jumpToBootloader(void);
-  volatile void reboot(void);
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif

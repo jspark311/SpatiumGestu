@@ -36,6 +36,8 @@ This file is meant to contain a set of common functions that are typically platf
 #include <Time/Time.h>
 #include <unistd.h>
 
+#define PLATFORM_GPIO_PIN_COUNT   33
+
 
 
 /****************************************************************************************************
@@ -148,6 +150,16 @@ void currentDateTime(StringBuilder* target) {
 /****************************************************************************************************
 * GPIO and change-notice                                                                            *
 ****************************************************************************************************/
+
+/*
+*
+*/
+volatile PlatformGPIODef gpio_pins[PLATFORM_GPIO_PIN_COUNT];
+
+void pin_isr_pitch_event() {
+}
+
+
 /*
 * This fxn should be called once on boot to setup the CPU pins that are not claimed
 *   by other classes. GPIO pins at the command of this-or-that class should be setup 
@@ -156,6 +168,34 @@ void currentDateTime(StringBuilder* target) {
 *   individual classes work out their own requirements.
 */
 void gpioSetup() {
+  // Null-out all the pin definitions in preparation for assignment.
+  for (uint8_t i = 0; i < PLATFORM_GPIO_PIN_COUNT; i++) {
+    gpio_pins[i].event = 0;      // No event assigned.
+    gpio_pins[i].fxn   = 0;      // No function pointer.
+    gpio_pins[i].mode  = INPUT;  // All pins begin as inputs.
+    gpio_pins[i].pin   = i;      // The pin number.
+  }
+}
+
+
+int8_t gpioDefine(uint8_t pin, uint8_t mode) {
+  pinMode(pin, mode);
+  return 0;
+}
+
+
+void unsetPinIRQ(uint8_t pin) {
+}
+
+
+void setPinEvent(uint8_t pin, ManuvrEvent* isr_event) {
+}
+
+
+/*
+* Pass the function pointer
+*/
+void setPinFxn(uint8_t pin, FunctionPointer fxn) {
 }
 
 
@@ -168,21 +208,12 @@ void gpioSetup() {
 * Misc                                                                                              *
 ****************************************************************************************************/
 
-void platformInit() {
-  start_time_micros = micros();
-  gpioSetup();
-  init_RNG();
-}
+volatile void jumpToBootloader() {  _reboot_Teensyduino_();                 }
+volatile void reboot() {            *((uint32_t *)0xE000ED0C) = 0x5FA0004;  }
 
+void globalIRQEnable() {     sei();    }
+void globalIRQDisable() {    cli();    }
 
-volatile void jumpToBootloader(void) {
-  _reboot_Teensyduino_();
-}
-
-
-volatile void reboot(void) {
-  *((uint32_t *)0xE000ED0C) = 0x5FA0004;
-}
 
 /**
 * Sometimes we question the size of the stack.
@@ -193,5 +224,13 @@ volatile uint32_t getStackPointer() {
   uint32_t test;  // Important to not do assignment here.
   test = (uint32_t) &test;  // Store the pointer.
   return test;
+}
+
+
+
+void platformInit() {
+  start_time_micros = micros();
+  gpioSetup();
+  init_RNG();
 }
 

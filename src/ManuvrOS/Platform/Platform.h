@@ -68,7 +68,21 @@ This file is meant to contain a set of common functions that are typically platf
 /*
 * These are constants where we care about the number.
 */
-#define PLATFORM_RNG_CARRY_CAPACITY           10     // How many random numbers should be cached?
+#define PLATFORM_RNG_CARRY_CAPACITY           10     // How many random numbers should be cached? 
+
+class ManuvrEvent;
+
+// Function-pointer definitions
+typedef void (*FunctionPointer) ();
+
+
+typedef struct __platform_gpio_def {
+  ManuvrEvent*    event;
+  FunctionPointer fxn;
+  uint8_t         pin;
+  uint8_t         flags;
+  uint16_t        mode;  // Strictly more than needed. Padding structure...
+} PlatformGPIODef;
 
 
 #ifdef __cplusplus
@@ -94,6 +108,10 @@ const char* getRTCStateString(uint32_t code);
 * Misc
 */
 volatile uint32_t getStackPointer();   // Returns the value of the stack pointer.
+volatile void jumpToBootloader();
+volatile void reboot();
+void globalIRQEnable();
+void globalIRQDisable();
 
 
 /*
@@ -108,7 +126,10 @@ void init_RNG();                             // Fire up the random number genera
 * GPIO and change-notice.
 */
 void gpioSetup();        // We call this once on bootstrap. Sets up GPIO not covered by other classes.
-
+int8_t gpioDefine(uint8_t pin, int mode);
+void unsetPinIRQ(uint8_t pin);
+void setPinEvent(uint8_t pin, ManuvrEvent* isr_event);
+void setPinFxn(uint8_t pin, FunctionPointer fxn);
 
 /*
 * Call this once on system init to configure the basics of the platform.

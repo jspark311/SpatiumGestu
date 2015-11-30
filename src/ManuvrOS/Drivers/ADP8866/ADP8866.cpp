@@ -417,7 +417,6 @@ int8_t ADP8866::notify(ManuvrEvent *active_event) {
 
 void ADP8866::procDirectDebugInstruction(StringBuilder *input) {
   char* str = input->position(0);
-  ManuvrEvent *event = NULL;  // Pitching events is a common thing in this fxn...
 
   uint8_t temp_byte = 0;
   if (*(str) != 0) {

@@ -756,21 +756,10 @@ int8_t MGC3130::notify(ManuvrEvent *active_event) {
 void MGC3130::procDirectDebugInstruction(StringBuilder *input) {
 #ifdef __MANUVR_CONSOLE_SUPPORT
   char* str = input->position(0);
-  ManuvrEvent *event = NULL;  // Pitching events is a common thing in this fxn...
-
-  uint8_t temp_byte = 0;
-  if (*(str) != 0) {
-    temp_byte = atoi((char*) str+1);
-  }
 
   /* These are debug case-offs that are typically used to test functionality, and are then
      struck from the build. */
   switch (*(str)) {
-    case 'r':
-      is_class_ready(false);
-      EventManager::raiseEvent(MANUVR_MSG_SENSOR_MGC3130_INIT, NULL);
-      break;
-
     default:
       EventReceiver::procDirectDebugInstruction(input);
       break;
