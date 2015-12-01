@@ -13,8 +13,8 @@
 *
 * Static members and initializers should be located here. Initializers first, functions second.
 ****************************************************************************************************/
-EventManager* EventManager::INSTANCE = NULL;
-PriorityQueue<ManuvrEvent*> EventManager::isr_event_queue;
+Kernel* Kernel::INSTANCE = NULL;
+PriorityQueue<ManuvrEvent*> Kernel::isr_event_queue;
 
 const unsigned char MSG_ARGS_EVENTRECEIVER[] = {SYS_EVENTRECEIVER_FM, 0, 0}; 
 const unsigned char MSG_ARGS_NO_ARGS[] = {0}; 
@@ -62,11 +62,11 @@ const MessageTypeDef message_defs[] = {
 /**
 * Vanilla constructor.
 */
-EventManager::EventManager() {
+Kernel::Kernel() {
   __class_initializer();
   INSTANCE           = this;
   current_event      = NULL;
-  setVerbosity((int8_t) 0);  // TODO: Why does this crash ViamSonus?
+  setVerbosity((int8_t) 1);  // TODO: Why does this crash ViamSonus?
   profiler(false);
 
   max_queue_depth     = 0;
@@ -92,7 +92,7 @@ EventManager::EventManager() {
 /**
 * Destructor. Should probably never be called.
 */
-EventManager::~EventManager() {
+Kernel::~Kernel() {
 }
 
 
@@ -100,27 +100,27 @@ EventManager::~EventManager() {
 /****************************************************************************************************
 * Logging members...                                                                                *
 ****************************************************************************************************/
-StringBuilder EventManager::log_buffer;
+StringBuilder Kernel::log_buffer;
 
 /*
 * Logger pass-through functions. Please mind the variadics...
 */
-volatile void EventManager::log(int severity, const char *str) {
+volatile void Kernel::log(int severity, const char *str) {
   if (!INSTANCE->verbosity) return;
   log_buffer.concat(str);
 }
 
-volatile void EventManager::log(char *str) {
+volatile void Kernel::log(char *str) {
   if (!INSTANCE->verbosity) return;
   log_buffer.concat(str);
 }
 
-volatile void EventManager::log(const char *str) {
+volatile void Kernel::log(const char *str) {
   if (!INSTANCE->verbosity) return;
   log_buffer.concat(str);
 }
 
-volatile void EventManager::log(const char *fxn_name, int severity, const char *str, ...) {
+volatile void Kernel::log(const char *fxn_name, int severity, const char *str, ...) {
   if (!INSTANCE->verbosity) return;
   log_buffer.concatf("%d  %s:\t", severity, fxn_name);
   va_list marker;
@@ -130,7 +130,7 @@ volatile void EventManager::log(const char *fxn_name, int severity, const char *
   va_end(marker);
 }
 
-volatile void EventManager::log(StringBuilder *str) {
+volatile void Kernel::log(StringBuilder *str) {
   if (!INSTANCE->verbosity) return;
   log_buffer.concatHandoff(str);
 }
@@ -156,12 +156,12 @@ volatile void EventManager::log(StringBuilder *str) {
 ****************************************************************************************************/
 
 
-int8_t EventManager::bootstrap() {
+int8_t Kernel::bootstrap() {
   subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
   
 //  mcp73833 = new MCP73833(9, 10);
   
-  // Setup the first i2c adapter and Subscribe it to EventManager.
+  // Setup the first i2c adapter and Subscribe it to Kernel.
 //  i2c     = new I2CAdapter(0);
 //  mgc3130 = new MGC3130(16, 17);
 
@@ -178,28 +178,27 @@ int8_t EventManager::bootstrap() {
   
 //  mgc3130->init();
 
-  ManuvrEvent *boot_completed_ev = EventManager::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
-  //boot_completed_ev->priority = EVENT_PRIORITY_HIGHEST;
-  EventReceiver::raiseEvent(boot_completed_ev);
+  //ManuvrEvent *boot_completed_ev = Kernel::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
+  raiseEvent(MANUVR_MSG_SYS_BOOT_COMPLETED, NULL);
   return 0;
 }
 
 
 /*
-* All external access to EventManager's non-static members should obtain it's reference via this fxn...
+* All external access to Kernel's non-static members should obtain it's reference via this fxn...
 *   Note that services that are dependant on us during the bootstrap phase should have a reference
 *   passed into their constructors, rather than forcing them to call this and risking an infinite 
 *   recursion.
 */
-EventManager* EventManager::getInstance() {
+Kernel* Kernel::getInstance() {
   if (INSTANCE == NULL) {
     // This is a valid means of instantiating the kernel. Typically, user code
     //   would have the Kernel on the stack, but if they want to live in the heap, 
     //   that's fine by us. Oblige...
-    EventManager::INSTANCE = new EventManager();
+    Kernel::INSTANCE = new Kernel();
   }
   // And that is how the singleton do...
-  return (EventManager*) EventManager::INSTANCE;
+  return (Kernel*) Kernel::INSTANCE;
 }
 
 
@@ -211,14 +210,14 @@ EventManager* EventManager::getInstance() {
 *
 * Depending on class implementations, we might choose to handle the completed Event differently. We 
 *   might add values to event's Argument chain and return RECYCLE. We may also free() the event
-*   ourselves and return DROP. By default, we will return REAP to instruct the EventManager
+*   ourselves and return DROP. By default, we will return REAP to instruct the Kernel
 *   to either free() the event or return it to it's preallocate queue, as appropriate. If the event
 *   was crafted to not be in the heap in its own allocation, we will return DROP instead.
 *
 * @param  event  The event for which service has been completed.
 * @return A callback return code.
 */
-int8_t EventManager::callback_proc(ManuvrEvent *event) {
+int8_t Kernel::callback_proc(ManuvrEvent *event) {
   /* Setup the default return code. If the event was marked as mem_managed, we return a DROP code.
      Otherwise, we will return a REAP code. Downstream of this assignment, we might choose differently. */ 
   int8_t return_value = event->eventManagerShouldReap() ? EVENT_CALLBACK_RETURN_REAP : EVENT_CALLBACK_RETURN_DROP;
@@ -226,7 +225,7 @@ int8_t EventManager::callback_proc(ManuvrEvent *event) {
   /* Some class-specific set of conditionals below this line. */
   switch (event->event_code) {
     case MANUVR_MSG_SYS_BOOT_COMPLETED:
-      EventManager::log("Boot complete.\n");
+      Kernel::log("Boot complete.\n");
       boot_completed = true;
       break;
     default:
@@ -237,7 +236,7 @@ int8_t EventManager::callback_proc(ManuvrEvent *event) {
 
 
 
-int8_t EventManager::notify(ManuvrEvent *active_event) {
+int8_t Kernel::notify(ManuvrEvent *active_event) {
   int8_t return_value = 0;
   
   switch (active_event->event_code) {
@@ -271,21 +270,21 @@ int8_t EventManager::notify(ManuvrEvent *active_event) {
 * character array that forms the USB rx buffer is either filled up, or we see
 * a new-line character on the wire.
 */
-void EventManager::feedUSBBuffer(uint8_t *buf, int len, bool terminal) {
+void Kernel::feedUSBBuffer(uint8_t *buf, int len, bool terminal) {
   usb_rx_buffer.concat(buf, len);
 
   if (terminal) {
     // If the ISR saw a CR or LF on the wire, we tell the parser it is ok to
     // run in idle time.
     ManuvrEvent* event = returnEvent(MANUVR_MSG_USER_DEBUG_INPUT);
-    event->specific_target = (EventReceiver*) this;
-    EventReceiver::raiseEvent(event);
+    //TODO: Crashes after eating StaticHub. event->specific_target = (EventReceiver*) this;
+    Kernel::staticRaiseEvent(event);
   }
 }
 
 
 
-void EventManager::procDirectDebugInstruction(StringBuilder* input) {
+void Kernel::procDirectDebugInstruction(StringBuilder* input) {
   char *str = (char *) input->string();
   char c = *(str);
   uint8_t temp_byte = 0;        // Many commands here take a single integer argument.
@@ -299,14 +298,14 @@ void EventManager::procDirectDebugInstruction(StringBuilder* input) {
   switch (c) {
     case 'B':
       if (temp_byte == 128) {
-        EventManager::raiseEvent(MANUVR_MSG_SYS_BOOTLOADER, NULL);
+        Kernel::raiseEvent(MANUVR_MSG_SYS_BOOTLOADER, NULL);
         break;
       }
       local_log.concatf("Will only jump to bootloader if the number '128' follows the command.\n");
       break;
     case 'b':
       if (temp_byte == 128) {
-        EventManager::raiseEvent(MANUVR_MSG_SYS_REBOOT, NULL);
+        Kernel::raiseEvent(MANUVR_MSG_SYS_REBOOT, NULL);
         break;
       }
       local_log.concatf("Will only reboot if the number '128' follows the command.\n");
@@ -333,10 +332,10 @@ void EventManager::procDirectDebugInstruction(StringBuilder* input) {
     case 'u':
       switch (temp_byte) {
         case 1:
-          EventManager::raiseEvent(MANUVR_MSG_SELF_DESCRIBE, NULL);
+          Kernel::raiseEvent(MANUVR_MSG_SELF_DESCRIBE, NULL);
           break;
         case 3:
-          EventManager::raiseEvent(MANUVR_MSG_LEGEND_MESSAGES, NULL);
+          Kernel::raiseEvent(MANUVR_MSG_LEGEND_MESSAGES, NULL);
           break;
         default:
           break;
@@ -348,7 +347,7 @@ void EventManager::procDirectDebugInstruction(StringBuilder* input) {
         case 255:
           break;
         default:
-          event = EventManager::returnEvent(MANUVR_MSG_SYS_POWER_MODE);
+          event = Kernel::returnEvent(MANUVR_MSG_SYS_POWER_MODE);
           event->addArg((uint8_t) temp_byte);
           EventReceiver::raiseEvent(event);
           local_log.concatf("Power mode is now %d.\n", temp_byte);
@@ -358,14 +357,14 @@ void EventManager::procDirectDebugInstruction(StringBuilder* input) {
 
     case 'i':   // Debug prints.
       if (1 == temp_byte) {
-        local_log.concat("EventManager profiling enabled.\n");
+        local_log.concat("Kernel profiling enabled.\n");
         profiler(true);
       }
       else if (2 == temp_byte) {
         printDebug(&local_log);
       }
       else if (6 == temp_byte) {
-        local_log.concat("EventManager profiling disabled.\n");
+        local_log.concat("Kernel profiling disabled.\n");
         profiler(false);
       }
       else {
@@ -420,7 +419,7 @@ void EventManager::procDirectDebugInstruction(StringBuilder* input) {
 * @param  client  The class that will be listening for Events.
 * @return 0 on success and -1 on failure.
 */
-int8_t EventManager::subscribe(EventReceiver *client) {
+int8_t Kernel::subscribe(EventReceiver *client) {
   if (NULL == client) return -1;
 
   client->setVerbosity(DEFAULT_CLASS_VERBOSITY);
@@ -444,7 +443,7 @@ int8_t EventManager::subscribe(EventReceiver *client) {
 * @param  priority  The priority of the client in the Event queue.
 * @return 0 on success and -1 on failure.
 */
-int8_t EventManager::subscribe(EventReceiver *client, uint8_t priority) {
+int8_t Kernel::subscribe(EventReceiver *client, uint8_t priority) {
   if (NULL == client) return -1;
 
   client->setVerbosity(DEFAULT_CLASS_VERBOSITY);
@@ -463,13 +462,13 @@ int8_t EventManager::subscribe(EventReceiver *client, uint8_t priority) {
 * @param  client    The class that will no longer be listening for Events.
 * @return 0 on success and -1 on failure.
 */
-int8_t EventManager::unsubscribe(EventReceiver *client) {
+int8_t Kernel::unsubscribe(EventReceiver *client) {
   if (NULL == client) return -1;
   return (subscribers.remove(client) ? 0 : -1);
 }
 
 
-EventReceiver* EventManager::getSubscriberByName(const char* search_str) {
+EventReceiver* Kernel::getSubscriberByName(const char* search_str) {
   EventReceiver* working;
   for (int i = 0; i < subscribers.size(); i++) {
     working = subscribers.get(i);
@@ -493,7 +492,7 @@ EventReceiver* EventManager::getSubscriberByName(const char* search_str) {
 * @param  cb    An optional callback pointer to be called when this event is finished.
 * @return -1 on failure, and 0 on success.
 */
-int8_t EventManager::raiseEvent(uint16_t code, EventReceiver* cb) {
+int8_t Kernel::raiseEvent(uint16_t code, EventReceiver* cb) {
   int8_t return_value = 0;
   
   // We are creating a new Event. Try to snatch a prealloc'd one and fall back to malloc if needed.
@@ -531,13 +530,13 @@ int8_t EventManager::raiseEvent(uint16_t code, EventReceiver* cb) {
 
 /**
 * Used to add a pre-formed event to the idle queue. Use this when a sophisticated event
-*   needs to be formed elsewhere and passed in. EventManager will only insert it into the
+*   needs to be formed elsewhere and passed in. Kernel will only insert it into the
 *   queue in this case.
 *
 * @param   event  The event to be inserted into the idle queue.
 * @return  -1 on failure, and 0 on success.
 */
-int8_t EventManager::staticRaiseEvent(ManuvrEvent* event) {
+int8_t Kernel::staticRaiseEvent(ManuvrEvent* event) {
   int8_t return_value = 0;
   if (0 == INSTANCE->validate_insertion(event)) {
     INSTANCE->event_queue.insert(event, event->priority);
@@ -563,13 +562,13 @@ int8_t EventManager::staticRaiseEvent(ManuvrEvent* event) {
 
 /**
 * Used to add a pre-formed event to the idle queue. Use this when a sophisticated event
-*   needs to be formed elsewhere and passed in. EventManager will only insert it into the
+*   needs to be formed elsewhere and passed in. Kernel will only insert it into the
 *   queue in this case.
 *
 * @param   event  The event to be removed from the idle queue.
 * @return  true if the given event was aborted, false otherwise.
 */
-bool EventManager::abortEvent(ManuvrEvent* event) {
+bool Kernel::abortEvent(ManuvrEvent* event) {
   if (!INSTANCE->event_queue.remove(event)) {
     // Didn't find it? Check  the isr_queue...
     if (!INSTANCE->isr_event_queue.remove(event)) {
@@ -584,7 +583,7 @@ bool EventManager::abortEvent(ManuvrEvent* event) {
 //       That way, we could check for it here, and have the (probable) possibility of not incurring
 //       the cost for merging these two queues if we don't have to.
 //             ---J. Ian Lindsay   Fri Jul 03 16:54:14 MST 2015
-int8_t EventManager::isrRaiseEvent(ManuvrEvent* event) {
+int8_t Kernel::isrRaiseEvent(ManuvrEvent* event) {
   int return_value = -1;
 #ifdef STM32F4XX
   asm volatile ("cpsie i");
@@ -607,13 +606,13 @@ int8_t EventManager::isrRaiseEvent(ManuvrEvent* event) {
 * Factory method. Returns a preallocated Event.
 * After we return the event, we lose track of it. So if the caller doesn't ever
 *   call raiseEvent(), the Event we return will become a memory leak.
-* The event we retun will have a callback field populated with a ref to EventManager.
+* The event we retun will have a callback field populated with a ref to Kernel.
 *   So if a caller needs their own reference in that slot, caller will need to do it.
 *
 * @param  code  The desired identity code of the event.
 * @return A pointer to the prepared event. Will not return NULL unless we are out of memory.
 */
-ManuvrEvent* EventManager::returnEvent(uint16_t code) {
+ManuvrEvent* Kernel::returnEvent(uint16_t code) {
   // We are creating a new Event. Try to snatch a prealloc'd one and fall back to malloc if needed.
   ManuvrEvent* return_value = INSTANCE->preallocated.dequeue();
   if (return_value == NULL) {
@@ -638,7 +637,7 @@ ManuvrEvent* EventManager::returnEvent(uint16_t code) {
 * @param event The inbound event that we need to evaluate.
 * @return 0 if the event is good-to-go. Otherwise, an appropriate failure code.
 */
-int8_t EventManager::validate_insertion(ManuvrEvent* event) {
+int8_t Kernel::validate_insertion(ManuvrEvent* event) {
   if (NULL == event) return -1;                                   // No NULL events.
   if (MANUVR_MSG_UNDEFINED == event->event_code) {
     return -2;  // No undefined events.
@@ -664,7 +663,7 @@ int8_t EventManager::validate_insertion(ManuvrEvent* event) {
 }
 
 
-bool EventManager::containsPreformedEvent(ManuvrEvent* event) {
+bool Kernel::containsPreformedEvent(ManuvrEvent* event) {
   return event_queue.contains(event);
 }
 
@@ -676,7 +675,7 @@ bool EventManager::containsPreformedEvent(ManuvrEvent* event) {
 *
 * @param active_event The event that has reached the end of its life-cycle.
 */
-void EventManager::reclaim_event(ManuvrEvent* active_event) {
+void Kernel::reclaim_event(ManuvrEvent* active_event) {
   if (NULL == active_event) {
     return;
   }
@@ -699,7 +698,7 @@ void EventManager::reclaim_event(ManuvrEvent* active_event) {
       preallocated.insert(active_event);      // ...and return it to the preallocate queue.
     }                                         // Otherwise, we let it drop and trust some other class is managing it.
     //else {
-    //  if (verbosity > 6) local_log.concat("EventManager::reclaim_event(): Doing nothing. Hope its managed elsewhere.\n");
+    //  if (verbosity > 6) local_log.concat("Kernel::reclaim_event(): Doing nothing. Hope its managed elsewhere.\n");
     //}
   }
   
@@ -710,7 +709,7 @@ void EventManager::reclaim_event(ManuvrEvent* active_event) {
 
 
 // This is the splice into v2's style of event handling (callaheads).
-int8_t EventManager::procCallAheads(ManuvrEvent *active_event) {
+int8_t Kernel::procCallAheads(ManuvrEvent *active_event) {
   int8_t return_value = 0;
   PriorityQueue<listenerFxnPtr> *ca_queue = ca_listeners[active_event->event_code];
   if (NULL != ca_queue) {
@@ -726,7 +725,7 @@ int8_t EventManager::procCallAheads(ManuvrEvent *active_event) {
 }
 
 // This is the splice into v2's style of event handling (callbacks).
-int8_t EventManager::procCallBacks(ManuvrEvent *active_event) {
+int8_t Kernel::procCallBacks(ManuvrEvent *active_event) {
   int8_t return_value = 0;
   PriorityQueue<listenerFxnPtr> *cb_queue = cb_listeners[active_event->event_code];
   if (NULL != cb_queue) {
@@ -755,7 +754,7 @@ int8_t EventManager::procCallBacks(ManuvrEvent *active_event) {
 *
 * @return the number of events processed, or a negative value on some failure.
 */
-int8_t EventManager::procIdleFlags() {
+int8_t Kernel::procIdleFlags() {
   uint32_t profiler_mark   = micros();
   uint32_t profiler_mark_0 = 0;   // Profiling requests...
   uint32_t profiler_mark_1 = 0;   // Profiling requests...
@@ -801,15 +800,21 @@ int8_t EventManager::procIdleFlags() {
     #endif
     if (profiler_enabled) profiler_mark_0 = micros();
 
-    // LOUD REMINDER! The switch() block below is the EventManager reacting to Events. Not related to
+    // LOUD REMINDER! The switch() block below is the Kernel reacting to Events. Not related to
     //   Event processing. Because this class extends EventReceiver, we should technically call its own
     //   notify(), but with no need to put itself in its own subscriber queue. That would be puritanical
     //   but silly.
-    // Instead, we'll take advantage of the position by treating EventManager as if it were the head and
+    // Instead, we'll take advantage of the position by treating Kernel as if it were the head and
     //   tail of the subscriber queue.     ---J. Ian Lindsay 2014.11.05
     if (active_event->callback != (EventReceiver*) this) {    // Don't react to our own internally-generated events.
 
       switch (active_event->event_code) {
+        case MANUVR_MSG_USER_DEBUG_INPUT:
+          last_user_input.concatHandoff(&usb_rx_buffer);
+          procDirectDebugInstruction(&last_user_input);
+          return_value++;
+          break;
+
         case MANUVR_MSG_SELF_DESCRIBE:
           // Field order: 1 uint32, 4 required null-terminated strings, 1 optional.
           // uint32:     MTU                (in terms of bytes)
@@ -942,7 +947,7 @@ int8_t EventManager::procIdleFlags() {
             break;
           case EVENT_CALLBACK_RETURN_ERROR:       // Something went wrong. Should never occur.
           case EVENT_CALLBACK_RETURN_UNDEFINED:   // The originating class doesn't care what we do with the event.
-            //if (verbosity > 1) local_log.concatf("EventManager found a possible mistake. Unexpected return case from callback_proc.\n");
+            //if (verbosity > 1) local_log.concatf("Kernel found a possible mistake. Unexpected return case from callback_proc.\n");
             // NOTE: No break;
           case EVENT_CALLBACK_RETURN_DROP:        // The originating class expects us to drop the event.
             #ifdef __MANUVR_DEBUG
@@ -1044,7 +1049,7 @@ int8_t EventManager::procIdleFlags() {
 }
 
 
-int8_t EventManager::registerCallbacks(uint16_t msgCode, listenerFxnPtr ca, listenerFxnPtr cb, uint32_t options) {
+int8_t Kernel::registerCallbacks(uint16_t msgCode, listenerFxnPtr ca, listenerFxnPtr cb, uint32_t options) {
   if (ca != NULL) {
     PriorityQueue<listenerFxnPtr> *ca_queue = ca_listeners[msgCode];
     if (NULL == ca_queue) {
@@ -1071,7 +1076,7 @@ int8_t EventManager::registerCallbacks(uint16_t msgCode, listenerFxnPtr ca, list
 *
 * @param   enabled  If true, enables the profiler. If false, disables it.
 */
-void EventManager::profiler(bool enabled) {
+void Kernel::profiler(bool enabled) {
   profiler_enabled   = enabled;
   max_idle_loop_time = 0;
   max_events_p_loop  = 0;
@@ -1092,7 +1097,7 @@ void EventManager::profiler(bool enabled) {
 *
 * @param   StringBuilder*  The buffer that this fxn will write output into.
 */
-void EventManager::printProfiler(StringBuilder* output) {
+void Kernel::printProfiler(StringBuilder* output) {
   if (NULL == output) return;
   output->concatf("\t total_events       \t%u\n",   (unsigned long) total_events);
   output->concatf("\t total_events_dead  \t%u\n\n", (unsigned long) total_events_dead);
@@ -1121,12 +1126,12 @@ void EventManager::printProfiler(StringBuilder* output) {
     output->concatf("\n\t CPU use by clock: %f\n\n", (double)cpu_usage());
   }
   else {
-    output->concat("-- EventManager profiler disabled.\n\n");
+    output->concat("-- Kernel profiler disabled.\n\n");
   }
 }
 
 
-float EventManager::cpu_usage() {
+float Kernel::cpu_usage() {
   return (micros_occupied / (float)(millis()*10));
 }
 
@@ -1154,7 +1159,7 @@ float EventManager::cpu_usage() {
 *
 * @return 0 on no action, 1 on action, -1 on failure.
 */
-int8_t EventManager::bootComplete() {
+int8_t Kernel::bootComplete() {
   EventReceiver::bootComplete();
   boot_completed = true;
   maskableInterrupts(true);  // Now configure interrupts, lift interrupt masks, and let the madness begin.
@@ -1167,7 +1172,7 @@ int8_t EventManager::bootComplete() {
 *
 * @return a pointer to a string constant.
 */
-const char* EventManager::getReceiverName() {  return "EventManager";  }
+const char* Kernel::getReceiverName() {  return "Kernel";  }
 
 
 /**
@@ -1175,7 +1180,7 @@ const char* EventManager::getReceiverName() {  return "EventManager";  }
 *
 * @param   StringBuilder* The buffer into which this fxn should write its output.
 */
-void EventManager::printDebug(StringBuilder* output) {
+void Kernel::printDebug(StringBuilder* output) {
   if (NULL == output) return;
   uint32_t initial_sp = getStackPointer();
   uint32_t final_sp = getStackPointer();

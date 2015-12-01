@@ -146,9 +146,9 @@ int8_t I2CQueuedOperation::abort(int8_t er) {
 void I2CQueuedOperation::markComplete(void) {
 	xfer_state = I2C_XFER_STATE_COMPLETE;
   initiated = true;  // Just so we don't accidentally get hung up thinking we need to start it.
-	ManuvrEvent* q_rdy = EventManager::returnEvent(MANUVR_MSG_I2C_QUEUE_READY);
+	ManuvrEvent* q_rdy = Kernel::returnEvent(MANUVR_MSG_I2C_QUEUE_READY);
 	q_rdy->specific_target = device;
-  EventManager::isrRaiseEvent(q_rdy);   // Raise an event
+  Kernel::isrRaiseEvent(q_rdy);   // Raise an event
 }
 
 
@@ -364,7 +364,7 @@ int8_t I2CQueuedOperation::advance_operation(uint32_t status_reg) {
         printDebug(&output);
       }
       //markComplete();
-      //EventManager::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
+      //Kernel::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
       break;
     default:
       #ifdef __MANUVR_DEBUG

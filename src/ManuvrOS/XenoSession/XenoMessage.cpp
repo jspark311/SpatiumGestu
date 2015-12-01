@@ -384,7 +384,7 @@ int XenoMessage::feedBuffer(StringBuilder *sb_buf) {
         output.concat("XenoMessage::feedBuffer(): Ooops. Clobbered an event pointer. Expect leaks...\n");
         #endif
       }
-      event = EventManager::returnEvent(message_code);
+      event = Kernel::returnEvent(message_code);
       switch (proc_state) {
         case XENO_MSG_PROC_STATE_RECEIVING:
           proc_state = XENO_MSG_PROC_STATE_AWAITING_UNSERIALIZE;

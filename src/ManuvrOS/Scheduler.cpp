@@ -418,7 +418,7 @@ void Scheduler::advanceScheduler() {
       /* Doing all this String manipulation in an ISR would normally be an awful idea.
          But we don't care here because we're hung anyhow, and we need to know why. */
       StringBuilder output;
-      StaticHub::getInstance()->fetchEventManager()->printDebug(&output);
+      StaticHub::getInstance()->fetchKernel()->printDebug(&output);
       printf("%s\n", (char*) output.string());
     }
     else if (skipped_loops == 2200) {
@@ -556,7 +556,7 @@ int Scheduler::serviceScheduledEvents() {
         //  }
         //}
         //else {
-          EventManager::staticRaiseEvent(current->event);
+          Kernel::staticRaiseEvent(current->event);
         //}
       }
       else if (NULL != current->schedule_callback) {
@@ -705,7 +705,6 @@ These are overrides from EventReceiver interface...
 * @return 0 on no action, 1 on action, -1 on failure.
 */
 int8_t Scheduler::bootComplete() {
-  scheduler = this;
   scheduler_ready = true;
   boot_completed = true;
   return 1;
@@ -719,7 +718,7 @@ int8_t Scheduler::bootComplete() {
 *
 * Depending on class implementations, we might choose to handle the completed Event differently. We 
 *   might add values to event's Argument chain and return RECYCLE. We may also free() the event
-*   ourselves and return DROP. By default, we will return REAP to instruct the EventManager
+*   ourselves and return DROP. By default, we will return REAP to instruct the Kernel
 *   to either free() the event or return it to it's preallocate queue, as appropriate. If the event
 *   was crafted to not be in the heap in its own allocation, we will return DROP instead.
 *

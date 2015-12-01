@@ -6,7 +6,7 @@
 *   in the header file. Takes no parameters, and returns nothing.
 */
 void EventReceiver::__class_initializer() {
-  scheduler = NULL;
+  __kernel = NULL;
   verbosity = DEFAULT_CLASS_VERBOSITY;
   boot_completed = false;
 }
@@ -141,7 +141,7 @@ void EventReceiver::procDirectDebugInstruction(StringBuilder *input) {
 int8_t EventReceiver::raiseEvent(ManuvrEvent* event) {
   if (event != NULL) {
     event->callback = (EventReceiver*) this;
-    return EventManager::staticRaiseEvent(event);
+    return Kernel::staticRaiseEvent(event);
   }
   else {
     return -1;
@@ -163,7 +163,7 @@ void EventReceiver::printDebug() {
 */
 void EventReceiver::printDebug(StringBuilder *output) {
   output->concatf("\n==< %s >===================================\n", getReceiverName());
-  output->concatf("--- bootstrap_completed \t %s\n--- scheduler present?  \t %s\n", (boot_completed) ? "yes" : "no", (NULL != scheduler) ? "yes" : "no");
+  output->concatf("--- bootstrap_completed \t %s\n--- kernel present?  \t %s\n", (boot_completed) ? "yes" : "no", (NULL != __kernel) ? "yes" : "no");
 }
 
 
@@ -206,7 +206,7 @@ int8_t EventReceiver::bootComplete() {
 *
 * Depending on class implementations, we might choose to handle the completed Event differently. We 
 *   might add values to event's Argument chain and return RECYCLE. We may also free() the event
-*   ourselves and return DROP. By default, we will return REAP to instruct the EventManager
+*   ourselves and return DROP. By default, we will return REAP to instruct the Kernel
 *   to either free() the event or return it to it's preallocate queue, as appropriate. If the event
 *   was crafted to not be in the heap in its own allocation, we will return DROP instead.
 *

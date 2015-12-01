@@ -514,7 +514,7 @@ int8_t I2CAdapter::bootComplete() {
 *
 * Depending on class implementations, we might choose to handle the completed Event differently. We 
 *   might add values to event's Argument chain and return RECYCLE. We may also free() the event
-*   ourselves and return DROP. By default, we will return REAP to instruct the EventManager
+*   ourselves and return DROP. By default, we will return REAP to instruct the Kernel
 *   to either free() the event or return it to it's preallocate queue, as appropriate. If the event
 *   was crafted to not be in the heap in its own allocation, we will return DROP instead.
 *
@@ -726,7 +726,7 @@ bool I2CAdapter::insert_work_item(I2CQueuedOperation *nu) {
 		  }
 		}
 		else {
-		  EventManager::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
+		  Kernel::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
 		}
 	}
 	return true;
@@ -1031,7 +1031,7 @@ void I2CAdapter::procDirectDebugInstruction(StringBuilder *input) {
       break;
     case ']':
       local_log.concatf("Advanced i2c work queue.\n");
-      EventManager::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
+      Kernel::raiseEvent(MANUVR_MSG_I2C_QUEUE_READY, NULL);   // Raise an event
       break;
 
     default:

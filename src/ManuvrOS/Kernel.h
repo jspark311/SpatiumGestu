@@ -1,7 +1,7 @@
 #ifndef __MANUVR_KERNEL_H__
   #define __MANUVR_KERNEL_H__
 
-  class EventManager;
+  class Kernel;
     
   #include <inttypes.h>
   #include "EnumeratedTypeCodes.h"
@@ -21,6 +21,8 @@
   #endif
 
   typedef int (*listenerFxnPtr) (ManuvrEvent*);
+  
+  extern uint32_t micros();  // TODO: Only needed for a single inline fxn. Retain?
   
 /* Type for schedule items... */
 class ScheduleItem {
@@ -185,13 +187,13 @@ class Scheduler : public EventReceiver {
   /*
   * This class is the machinery that handles Events. It should probably only be instantiated once.
   */
-  class EventManager : public EventReceiver {
+  class Kernel : public EventReceiver {
     public:
       uint32_t micros_occupied;       // How many micros have we spent procing events?
       ManuvrEvent* current_event;
       
-      EventManager(void);
-      ~EventManager(void);
+      Kernel(void);
+      ~Kernel(void);
       
       int8_t subscribe(EventReceiver *client);                    // A class calls this to subscribe to events.
       int8_t subscribe(EventReceiver *client, uint8_t priority);  // A class calls this to subscribe to events.
@@ -212,11 +214,11 @@ class Scheduler : public EventReceiver {
       */
       static StringBuilder log_buffer;
       void feedUSBBuffer(uint8_t *buf, int len, bool terminal);
-      static EventManager* getInstance(void);
+      static Kernel* getInstance(void);
       int8_t bootstrap(void);
       StringBuilder usb_rx_buffer;    // Was private in StaticHub
       StringBuilder last_user_input;  // Was private in StaticHub
-      inline void advanceScheduler() { __scheduler.advanceScheduler();  }
+      
 
       /*
       TODO: This particular pile of garbage is temporary pass-through for the Scheduler.
@@ -231,10 +233,28 @@ class Scheduler : public EventReceiver {
       inline int serviceScheduledEvents() {
         return __scheduler.serviceScheduledEvents();
       };
+      inline bool disableSchedule(uint32_t g_pid) {
+        return __scheduler.disableSchedule(g_pid);
+      };
+      inline bool enableSchedule(uint32_t g_pid) {
+        return __scheduler.enableSchedule(g_pid);
+      };
+      inline bool removeSchedule(uint32_t g_pid) {
+        return __scheduler.removeSchedule(g_pid);
+      };
+      inline bool fireSchedule(uint32_t g_pid) {
+        return __scheduler.fireSchedule(g_pid);
+      };
+      inline bool alterScheduleRecurrence(uint32_t schedule_index, int16_t recurrence) {
+        return __scheduler.alterScheduleRecurrence(schedule_index, recurrence);
+      };
+      inline void advanceScheduler() { 
+        __scheduler.advanceScheduler();
+      }
 
       
       /*
-      * Calling this will register a message in the EventManager, along with a call-ahead,
+      * Calling this will register a message in the Kernel, along with a call-ahead,
       *   a callback, and options. Only the first parameter is strictly required, but
       *   at least one of the function parameters should be non-null.
       */
@@ -266,7 +286,7 @@ class Scheduler : public EventReceiver {
       
 
       /* Overrides from EventReceiver
-         EventManager is special, and it will naturally have both methods from EventReceiver.
+         Kernel is special, and it will naturally have both methods from EventReceiver.
          Just gracefully fall into those when needed. */
       int8_t notify(ManuvrEvent*);
       int8_t callback_proc(ManuvrEvent *);
@@ -326,7 +346,7 @@ class Scheduler : public EventReceiver {
       inline bool should_run_another_event(int8_t loops, uint32_t begin) {     return (max_events_per_loop ? ((int8_t) max_events_per_loop > loops) : ((micros() - begin) < 1200));   };
       
       
-      static EventManager* INSTANCE;
+      static Kernel* INSTANCE;
       static PriorityQueue<ManuvrEvent*> isr_event_queue;   // Events that have been raised from ISRs.
   };
 
@@ -336,6 +356,5 @@ class Scheduler : public EventReceiver {
   }
   #endif
   
-  typedef EventManager Kernel;
 #endif  // __MANUVR_KERNEL_H__
 

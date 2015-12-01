@@ -6,7 +6,7 @@
 #define HOST_BAUD_RATE  115200
 
 
-EventManager* kernel = NULL;
+Kernel* kernel = NULL;
 
 
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
@@ -57,16 +57,21 @@ void setup() {
   pinMode(PIN_LED1,         OUTPUT);
   pinMode(MANUVR_LOGO_LED,  OUTPUT);
   
-  EventManager __kernel;  // Instance the kernel.
+  Kernel __kernel;  // Instance the kernel.
   kernel = &__kernel;
+  
+  kernel->createSchedule(40, -1, false, logo_fade);
+  kernel->createSchedule(25, -1, false, blink_led);
+
+  __kernel.bootstrap();
   
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 6000, NULL, 1, NULL );
+  xTaskCreate(mainTaskFxn, "Main", 4000, NULL, 1, NULL );
 
   // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Sched", 40, (void*)kernel, 1, NULL );
+  xTaskCreate(schedulerTaskFxn, "Sched", 3000, (void*)kernel, 1, NULL );
   xTaskCreate(loggerTask, "Logger", 40, (void*)kernel, 1, NULL);
   
   vTaskStartScheduler();
@@ -87,9 +92,6 @@ void mainTaskFxn(void *pvParameters) {
   unsigned char* ser_buffer = (unsigned char*) alloca(255);
   int bytes_read = 0;
   
-  kernel->createSchedule(40, -1, false, logo_fade);
-  kernel->createSchedule(25, -1, false, blink_led);
-
   /* As per most tasks, this task is implemented in an infinite loop. */
   for(;;) {
     kernel->procIdleFlags();
@@ -112,25 +114,28 @@ void mainTaskFxn(void *pvParameters) {
 
 
 void schedulerTaskFxn(void *pvParameters) {
+  StringBuilder output;
   for(;;) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
     kernel->advanceScheduler();
-    vTaskDelay( 2 / portTICK_PERIOD_MS );
+    vTaskDelay( 400 / portTICK_PERIOD_MS );
+    kernel->printDebug(&output);
+    Kernel::log(&output);
   }
 }
 
 
 void loggerTask(void *pvParameters) {
   for(;;) {
-    if (EventManager::log_buffer.count()) {
+    if (Kernel::log_buffer.count()) {
       if (!kernel->getVerbosity()) {
-        EventManager::log_buffer.clear();
+        Kernel::log_buffer.clear();
       }
       else {
         //printf("%s", Kernel::log_buffer.position(0));
-        Serial.print((char*) EventManager::log_buffer.position(0));
-        EventManager::log_buffer.drop_position(0);
+        Serial.print((char*) Kernel::log_buffer.position(0));
+        Kernel::log_buffer.drop_position(0);
       }
     }
     else {

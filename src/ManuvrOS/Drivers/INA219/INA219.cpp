@@ -178,7 +178,7 @@ void INA219::operationCompleteCallback(I2CQueuedOperation* completed) {
       case INA219_REG_CURRENT:
       case INA219_REG_POWER:
         if (process_read_data()) {
-          //EventManager::raiseEvent(MANUVR_MSG_SENSOR_INA219, NULL);   // Raise an event
+          //Kernel::raiseEvent(MANUVR_MSG_SENSOR_INA219, NULL);   // Raise an event
         }
         break;
       case INA219_REG_CONFIGURATION:

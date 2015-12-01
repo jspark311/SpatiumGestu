@@ -31,9 +31,9 @@ This class was coded with the assumption that there would only be one such
   chip in a given system.
 */
 
-#include <ManuvrOS/Kernel.h>
 #include "MCP73833.h"
 #include <StringBuilder/StringBuilder.h>
+#include <ManuvrOS/Platform/Platform.h>
 
 
 volatile MCP73833* MCP73833::INSTANCE = NULL;

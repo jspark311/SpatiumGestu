@@ -44,9 +44,9 @@
 
     protected:
       uint8_t          flags;         // Optional flags that might be important for an event.
-      bool             mem_managed;      // Set to true to cause the EventManager to not free().
-      bool             scheduled;        // Set to true to cause the EventManager to not free().
-      bool             preallocated;  // Set to true to cause the EventManager to return this event to its prealloc.
+      bool             mem_managed;      // Set to true to cause the Kernel to not free().
+      bool             scheduled;        // Set to true to cause the Kernel to not free().
+      bool             preallocated;  // Set to true to cause the Kernel to return this event to its prealloc.
 
       void __class_initializer();
 
