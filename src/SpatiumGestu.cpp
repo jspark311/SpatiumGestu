@@ -64,7 +64,7 @@ void setup() {
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 256, (void*)sh, 1, NULL );
+  xTaskCreate(mainTaskFxn, "Main", 6000, (void*)sh, 1, NULL );
   
   // Create the scheduler thread. Let's see if this flies....
   xTaskCreate(schedulerTaskFxn, "Sched", 40, (void*)scheduler, 1, NULL );
