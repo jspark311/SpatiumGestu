@@ -50,6 +50,25 @@ const MessageTypeDef message_defs[] = {
 };
 
 
+/*
+* All external access to Kernel's non-static members should obtain it's reference via this fxn...
+*   Note that services that are dependant on us during the bootstrap phase should have a reference
+*   passed into their constructors, rather than forcing them to call this and risking an infinite 
+*   recursion.
+*/
+Kernel* Kernel::getInstance() {
+  if (INSTANCE == NULL) {
+    // This is a valid means of instantiating the kernel. Typically, user code
+    //   would have the Kernel on the stack, but if they want to live in the heap, 
+    //   that's fine by us. Oblige...
+    Kernel::INSTANCE = new Kernel();
+  }
+  // And that is how the singleton do...
+  return (Kernel*) Kernel::INSTANCE;
+}
+
+
+
 /****************************************************************************************************
 *   ___ _              ___      _ _              _      _       
 *  / __| |__ _ ______ | _ ) ___(_) |___ _ _ _ __| |__ _| |_ ___ 
@@ -65,7 +84,9 @@ const MessageTypeDef message_defs[] = {
 Kernel::Kernel() {
   __class_initializer();
   INSTANCE           = this;
+  __kernel           = this;
   current_event      = NULL;
+  subscribe(this);   // We subscribe ourselves to events.
   setVerbosity((int8_t) 1);  // TODO: Why does this crash ViamSonus?
   profiler(false);
 
@@ -184,24 +205,6 @@ int8_t Kernel::bootstrap() {
 }
 
 
-/*
-* All external access to Kernel's non-static members should obtain it's reference via this fxn...
-*   Note that services that are dependant on us during the bootstrap phase should have a reference
-*   passed into their constructors, rather than forcing them to call this and risking an infinite 
-*   recursion.
-*/
-Kernel* Kernel::getInstance() {
-  if (INSTANCE == NULL) {
-    // This is a valid means of instantiating the kernel. Typically, user code
-    //   would have the Kernel on the stack, but if they want to live in the heap, 
-    //   that's fine by us. Oblige...
-    Kernel::INSTANCE = new Kernel();
-  }
-  // And that is how the singleton do...
-  return (Kernel*) Kernel::INSTANCE;
-}
-
-
 
 /**
 * If we find ourselves in this fxn, it means an event that this class built (the argument)
@@ -244,6 +247,67 @@ int8_t Kernel::notify(ManuvrEvent *active_event) {
       last_user_input.concatHandoff(&usb_rx_buffer);
       procDirectDebugInstruction(&last_user_input);
       return_value++;
+      break;
+
+    case MANUVR_MSG_SELF_DESCRIBE:
+      // Field order: 1 uint32, 4 required null-terminated strings, 1 optional.
+      // uint32:     MTU                (in terms of bytes)
+      // String:     Protocol version   (IE: "0.0.1")
+      // String:     Identity           (IE: "Digitabulum") Generally the name of the Manuvrable.
+      // String:     Firmware version   (IE: "1.5.4")
+      // String:     Hardware version   (IE: "4")
+      // String:     Extended detail    (User-defined)
+      if (0 == active_event->args.size()) {
+        // We are being asked to self-describe.
+        active_event->addArg((uint32_t)    PROTOCOL_MTU);
+        active_event->addArg((const char*) PROTOCOL_VERSION);
+        active_event->addArg((const char*) IDENTITY_STRING);
+        active_event->addArg((const char*) VERSION_STRING);
+        active_event->addArg((const char*) HW_VERSION_STRING);
+        #ifdef EXTENDED_DETAIL_STRING
+          active_event->addArg((const char*) EXTENDED_DETAIL_STRING);
+        #endif
+        return_value++;
+      }
+      break;
+      
+    case MANUVR_MSG_SYS_REBOOT:
+      reboot();
+      break;
+    case MANUVR_MSG_SYS_BOOTLOADER:
+      jumpToBootloader();
+      break;
+      
+    case MANUVR_MSG_SYS_ADVERTISE_SRVC:  // Some service is annoucing its arrival.
+    case MANUVR_MSG_SYS_RETRACT_SRVC:    // Some service is annoucing its departure.
+      if (0 < active_event->argCount()) {
+        EventReceiver* er_ptr; 
+        if (0 == active_event->getArgAs(&er_ptr)) {
+          if (MANUVR_MSG_SYS_ADVERTISE_SRVC == active_event->event_code) {
+            subscribe((EventReceiver*) er_ptr);
+          }
+          else {
+            unsubscribe((EventReceiver*) er_ptr);
+          }
+        }
+      }
+      break;
+      
+    case MANUVR_MSG_LEGEND_MESSAGES:     // Dump the message definitions.
+      if (0 == active_event->argCount()) {   // Only if we are seeing a request.
+        StringBuilder *tmp_sb = new StringBuilder();
+        if (ManuvrMsg::getMsgLegend(tmp_sb) ) {
+          active_event->addArg(tmp_sb);
+          return_value++;
+        }
+        else {
+          //if (verbosity > 1) local_log.concatf("There was a problem writing the message legend. This is bad. Size %d.\n", tmp_sb->length());
+        }
+      }
+      else {
+        // We may be receiving a message definition message from another party.
+        // For now, we've decided to handle this in XenoSession.
+      }
       break;
 
     case MANUVR_MSG_SYS_ISSUE_LOG_ITEM:
@@ -766,11 +830,7 @@ int8_t Kernel::procIdleFlags() {
   ManuvrEvent *active_event = NULL;  // Our short-term focus.
   uint8_t activity_count    = 0;     // Incremented whenever a subscriber reacts to an event.
 
-  #ifdef STM32F4XX
-    asm volatile ("cpsie i");
-  #elif defined(ARDUINO)
-    cli();
-  #endif
+  globalIRQDisable();
   while (isr_event_queue.size() > 0) {
     active_event = isr_event_queue.dequeue();
 
@@ -779,11 +839,7 @@ int8_t Kernel::procIdleFlags() {
     }
     else reclaim_event(active_event);
   }
-  #ifdef STM32F4XX
-    asm volatile ("cpsid i");
-  #elif defined(ARDUINO)
-    sei();
-  #endif
+  globalIRQEnable();
     
   active_event = NULL;   // Pedantic...
   
@@ -800,88 +856,6 @@ int8_t Kernel::procIdleFlags() {
     #endif
     if (profiler_enabled) profiler_mark_0 = micros();
 
-    // LOUD REMINDER! The switch() block below is the Kernel reacting to Events. Not related to
-    //   Event processing. Because this class extends EventReceiver, we should technically call its own
-    //   notify(), but with no need to put itself in its own subscriber queue. That would be puritanical
-    //   but silly.
-    // Instead, we'll take advantage of the position by treating Kernel as if it were the head and
-    //   tail of the subscriber queue.     ---J. Ian Lindsay 2014.11.05
-    if (active_event->callback != (EventReceiver*) this) {    // Don't react to our own internally-generated events.
-
-      switch (active_event->event_code) {
-        case MANUVR_MSG_USER_DEBUG_INPUT:
-          last_user_input.concatHandoff(&usb_rx_buffer);
-          procDirectDebugInstruction(&last_user_input);
-          return_value++;
-          break;
-
-        case MANUVR_MSG_SELF_DESCRIBE:
-          // Field order: 1 uint32, 4 required null-terminated strings, 1 optional.
-          // uint32:     MTU                (in terms of bytes)
-          // String:     Protocol version   (IE: "0.0.1")
-          // String:     Identity           (IE: "Digitabulum") Generally the name of the Manuvrable.
-          // String:     Firmware version   (IE: "1.5.4")
-          // String:     Hardware version   (IE: "4")
-          // String:     Extended detail    (User-defined)
-          if (0 == active_event->args.size()) {
-            // We are being asked to self-describe.
-            active_event->addArg((uint32_t)    PROTOCOL_MTU);
-            active_event->addArg((const char*) PROTOCOL_VERSION);
-            active_event->addArg((const char*) IDENTITY_STRING);
-            active_event->addArg((const char*) VERSION_STRING);
-            active_event->addArg((const char*) HW_VERSION_STRING);
-            #ifdef EXTENDED_DETAIL_STRING
-              active_event->addArg((const char*) EXTENDED_DETAIL_STRING);
-            #endif
-            activity_count++;
-          }
-          break;
-      
-        case MANUVR_MSG_SYS_REBOOT:
-          reboot();
-          break;
-        case MANUVR_MSG_SYS_BOOTLOADER:
-          jumpToBootloader();
-          break;
-      
-        case MANUVR_MSG_SYS_ADVERTISE_SRVC:  // Some service is annoucing its arrival.
-        case MANUVR_MSG_SYS_RETRACT_SRVC:    // Some service is annoucing its departure.
-          if (0 < active_event->argCount()) {
-            EventReceiver* er_ptr; 
-            if (0 == active_event->getArgAs(&er_ptr)) {
-              if (MANUVR_MSG_SYS_ADVERTISE_SRVC == active_event->event_code) {
-                subscribe((EventReceiver*) er_ptr);
-              }
-              else {
-                unsubscribe((EventReceiver*) er_ptr);
-              }
-            }
-          }
-          break;
-      
-        case MANUVR_MSG_LEGEND_MESSAGES:     // Dump the message definitions.
-          if (0 == active_event->argCount()) {   // Only if we are seeing a request.
-            StringBuilder *tmp_sb = new StringBuilder();
-            if (ManuvrMsg::getMsgLegend(tmp_sb) ) {
-              active_event->addArg(tmp_sb);
-              activity_count++;
-            }
-            else {
-              //if (verbosity > 1) local_log.concatf("There was a problem writing the message legend. This is bad. Size %d.\n", tmp_sb->length());
-            }
-          }
-          else {
-            // We may be receiving a message definition message from another party.
-            // For now, we've decided to handle this in XenoSession.
-          }
-          break;
-        default:
-          // See the notes above. We still have to behave like any other EventReceiver....
-          activity_count += EventReceiver::notify(active_event);
-          break;
-      }
-    }
-    
     procCallAheads(active_event);
     
     // Now we start notify()'ing subscribers.
@@ -889,17 +863,17 @@ int8_t Kernel::procIdleFlags() {
     if (profiler_enabled) profiler_mark_1 = micros();
     
     if (NULL != active_event->specific_target) {
-        subscriber = active_event->specific_target;
-        switch (subscriber->notify(active_event)) {
-          case 0:   // The nominal case. No response.
-            break;
-          case -1:  // The subscriber choked. Figure out why. Technically, this is action. Case fall-through...
-            subscriber->printDebug(&local_log);
-          default:   // The subscriber acted.
-            activity_count++;
-            if (profiler_enabled) profiler_mark_2 = micros();
-            break;
-        }
+      subscriber = active_event->specific_target;
+      switch (subscriber->notify(active_event)) {
+        case 0:   // The nominal case. No response.
+          break;
+        case -1:  // The subscriber choked. Figure out why. Technically, this is action. Case fall-through...
+          subscriber->printDebug(&local_log);
+        default:   // The subscriber acted.
+          activity_count++;
+          if (profiler_enabled) profiler_mark_2 = micros();
+          break;
+      }
     }
     else {
       for (int i = 0; i < subscribers.size(); i++) {
