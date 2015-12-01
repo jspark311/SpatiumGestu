@@ -1,7 +1,4 @@
-#include "EventManager.h"
-
-#include "StaticHub/StaticHub.h"
-
+#include <ManuvrOS/Kernel.h>
 
 
 /**
@@ -40,7 +37,7 @@ int8_t EventReceiver::setVerbosity(int8_t nu_verbosity) {
     case LOG_INFO:    /* 6 - informational */
       #ifdef __MANUVR_DEBUG
       local_log.concatf("%s:\tVerbosity set to %d\n", getReceiverName(), nu_verbosity);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
       #endif
     case LOG_NOTICE:  /* 5 - normal but significant condition */
     case LOG_WARNING: /* 4 - warning conditions */
@@ -54,7 +51,7 @@ int8_t EventReceiver::setVerbosity(int8_t nu_verbosity) {
       #ifdef __MANUVR_DEBUG
       if (verbosity > 4) {
         local_log.concatf("Illegal verbosity value.\n", getReceiverName(), nu_verbosity);
-        StaticHub::log(&local_log);
+        Kernel::log(&local_log);
       }
       #endif
       return -1;
@@ -77,7 +74,7 @@ int8_t EventReceiver::setVerbosity(ManuvrEvent* active_event) {
     case 0:
       #ifdef __MANUVR_DEBUG
       local_log.concatf("%s:\tVerbosity is %d\n", getReceiverName(), verbosity);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
       #endif
       return 1;
     case 1:
@@ -99,12 +96,12 @@ int EventReceiver::purgeLogs() {
   int lll = local_log.length();
   if (lll > 0) {
     if (verbosity > 4) {
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     local_log.clear();
     #ifdef __MANUVR_DEBUG
     local_log.concatf("%s GCd %d bytes.\n", getReceiverName(), lll);  // TODO: This never happens.
-    StaticHub::log(&local_log);
+    Kernel::log(&local_log);
     #endif
   }
   return return_value;
@@ -132,7 +129,7 @@ void EventReceiver::procDirectDebugInstruction(StringBuilder *input) {
       break;
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 #endif
 }
 
@@ -156,7 +153,7 @@ int8_t EventReceiver::raiseEvent(ManuvrEvent* event) {
 /* Override for lazy programmers. */
 void EventReceiver::printDebug() {
   printDebug(&local_log);
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 
@@ -196,10 +193,7 @@ void EventReceiver::printDebug(StringBuilder *output) {
 * @return 0 on no action, 1 on action, -1 on failure.
 */
 int8_t EventReceiver::bootComplete() {
-  StaticHub *sh = StaticHub::getInstance();
-  if (NULL != sh) {
-    scheduler = sh->fetchScheduler();
-  }
+  __kernel = Kernel::getInstance();
   boot_completed = true;
   return 1;
 }

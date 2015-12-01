@@ -28,9 +28,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "Scheduler.h"
-#include "StaticHub/StaticHub.h"
-
+#include "Kernel.h"
 
 
 /****************************************************************************************************
@@ -838,7 +836,7 @@ int8_t Scheduler::notify(ManuvrEvent *active_event) {
       break;
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
   return return_value;
 }
 
@@ -877,7 +875,7 @@ void Scheduler::procDirectDebugInstruction(StringBuilder *input) {
       break;
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 #endif
 }
 

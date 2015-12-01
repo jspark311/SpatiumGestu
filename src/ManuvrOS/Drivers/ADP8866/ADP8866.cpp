@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 */
 
-#include "StaticHub/StaticHub.h"
+#include <ManuvrOS/Kernel.h>
 #include "ADP8866.h"
 
 #define MANUVR_MSG_ADP8866_IRQ          0x9034  // Some random message code. Nonexportable.
@@ -310,7 +310,7 @@ void ADP8866::operationCompleteCallback(I2CQueuedOperation* completed) {
         temp_reg->unread = false;
         break;
   }
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 
@@ -409,7 +409,7 @@ int8_t ADP8866::notify(ManuvrEvent *active_event) {
       break;
   }
       
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
   return return_value;
 }
 
@@ -451,7 +451,7 @@ void ADP8866::procDirectDebugInstruction(StringBuilder *input) {
       break;
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 
@@ -568,7 +568,7 @@ void ADP8866::set_power_mode(uint8_t nu_power_mode) {
     default:
       break;
   }
-  StaticHub::log("ADP8866 Power mode set. \n");
+  Kernel::log("ADP8866 Power mode set. \n");
 }
 
 

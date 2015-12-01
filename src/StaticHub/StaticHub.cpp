@@ -168,7 +168,6 @@ StaticHub::StaticHub() {
 
 Scheduler*    StaticHub::fetchScheduler(void) {     return &__scheduler;     }
 EventManager* StaticHub::fetchEventManager(void) {  return &event_manager;   }
-MGC3130*      StaticHub::fetchMGC3130(void) {       return mgc3130;          }
 
 
 /****************************************************************************************************
@@ -256,7 +255,7 @@ int8_t StaticHub::notify(ManuvrEvent *active_event) {
       break;
   }
   return return_value;
-}
+}                             
 
 
 

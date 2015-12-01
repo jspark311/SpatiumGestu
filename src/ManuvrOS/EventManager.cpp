@@ -1,8 +1,6 @@
 #include "FirmwareDefs.h"
-#include "EventManager.h"
-
-#include "StaticHub/StaticHub.h"
-
+#include <ManuvrOS/Kernel.h>
+#include <ManuvrOS/Platform/Platform.h>
 
 
 /****************************************************************************************************
@@ -96,6 +94,317 @@ EventManager::EventManager() {
 */
 EventManager::~EventManager() {
 }
+
+
+
+/****************************************************************************************************
+* Logging members...                                                                                *
+****************************************************************************************************/
+StringBuilder EventManager::log_buffer;
+
+/*
+* Logger pass-through functions. Please mind the variadics...
+*/
+volatile void EventManager::log(int severity, const char *str) {
+  if (!INSTANCE->verbosity) return;
+  log_buffer.concat(str);
+}
+
+volatile void EventManager::log(char *str) {
+  if (!INSTANCE->verbosity) return;
+  log_buffer.concat(str);
+}
+
+volatile void EventManager::log(const char *str) {
+  if (!INSTANCE->verbosity) return;
+  log_buffer.concat(str);
+}
+
+volatile void EventManager::log(const char *fxn_name, int severity, const char *str, ...) {
+  if (!INSTANCE->verbosity) return;
+  log_buffer.concatf("%d  %s:\t", severity, fxn_name);
+  va_list marker;
+  
+  va_start(marker, str);
+  log_buffer.concatf(str, marker);
+  va_end(marker);
+}
+
+volatile void EventManager::log(StringBuilder *str) {
+  if (!INSTANCE->verbosity) return;
+  log_buffer.concatHandoff(str);
+}
+
+/****************************************************************************************************
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                    These are the things left over                      *
+* Big pile of ugly..........                    from StaticHub. They need to                        *
+* Big pile of ugly..........                    justify their existance or DIAF.                    *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                       ---J. Ian Lindsay   Tue Dec 01 01:28:09 MST 2015 *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+* Big pile of ugly..........                                                                        *
+****************************************************************************************************/
+
+
+int8_t EventManager::bootstrap() {
+  subscribe((EventReceiver*) &__scheduler);    // Subscribe the Scheduler.
+  
+//  mcp73833 = new MCP73833(9, 10);
+  
+  // Setup the first i2c adapter and Subscribe it to EventManager.
+//  i2c     = new I2CAdapter(0);
+//  mgc3130 = new MGC3130(16, 17);
+
+//  ina219      = new INA219(0x4A);
+//  adp8866     = new ADP8866(7, 8, 0x27);
+
+//  event_manager.subscribe((EventReceiver*) i2c);
+//  event_manager.subscribe((EventReceiver*) adp8866);
+
+//  ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
+//  ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
+  
+  platformInit();    // Start the platform-specific machinery.
+  
+//  mgc3130->init();
+
+  ManuvrEvent *boot_completed_ev = EventManager::returnEvent(MANUVR_MSG_SYS_BOOT_COMPLETED);
+  //boot_completed_ev->priority = EVENT_PRIORITY_HIGHEST;
+  EventReceiver::raiseEvent(boot_completed_ev);
+  return 0;
+}
+
+
+/*
+* All external access to EventManager's non-static members should obtain it's reference via this fxn...
+*   Note that services that are dependant on us during the bootstrap phase should have a reference
+*   passed into their constructors, rather than forcing them to call this and risking an infinite 
+*   recursion.
+*/
+EventManager* EventManager::getInstance() {
+  if (INSTANCE == NULL) {
+    // This is a valid means of instantiating the kernel. Typically, user code
+    //   would have the Kernel on the stack, but if they want to live in the heap, 
+    //   that's fine by us. Oblige...
+    EventManager::INSTANCE = new EventManager();
+  }
+  // And that is how the singleton do...
+  return (EventManager*) EventManager::INSTANCE;
+}
+
+
+
+/**
+* If we find ourselves in this fxn, it means an event that this class built (the argument)
+*   has been serviced and we are now getting the chance to see the results. The argument 
+*   to this fxn will never be NULL.
+*
+* Depending on class implementations, we might choose to handle the completed Event differently. We 
+*   might add values to event's Argument chain and return RECYCLE. We may also free() the event
+*   ourselves and return DROP. By default, we will return REAP to instruct the EventManager
+*   to either free() the event or return it to it's preallocate queue, as appropriate. If the event
+*   was crafted to not be in the heap in its own allocation, we will return DROP instead.
+*
+* @param  event  The event for which service has been completed.
+* @return A callback return code.
+*/
+int8_t EventManager::callback_proc(ManuvrEvent *event) {
+  /* Setup the default return code. If the event was marked as mem_managed, we return a DROP code.
+     Otherwise, we will return a REAP code. Downstream of this assignment, we might choose differently. */ 
+  int8_t return_value = event->eventManagerShouldReap() ? EVENT_CALLBACK_RETURN_REAP : EVENT_CALLBACK_RETURN_DROP;
+  
+  /* Some class-specific set of conditionals below this line. */
+  switch (event->event_code) {
+    case MANUVR_MSG_SYS_BOOT_COMPLETED:
+      EventManager::log("Boot complete.\n");
+      boot_completed = true;
+      break;
+    default:
+      break;
+  }
+  return return_value;
+}
+
+
+
+int8_t EventManager::notify(ManuvrEvent *active_event) {
+  int8_t return_value = 0;
+  
+  switch (active_event->event_code) {
+    case MANUVR_MSG_USER_DEBUG_INPUT:
+      last_user_input.concatHandoff(&usb_rx_buffer);
+      procDirectDebugInstruction(&last_user_input);
+      return_value++;
+      break;
+
+    case MANUVR_MSG_SYS_ISSUE_LOG_ITEM:
+      {
+        StringBuilder *log_item;
+        if (0 == active_event->getArgAs(&log_item)) {
+          log_buffer.concatHandoff(log_item);
+        }
+      }
+      break;
+      
+    default:
+      return_value += EventReceiver::notify(active_event);
+      break;
+  }
+  return return_value;
+}                             
+
+
+
+
+/*
+* This is called from the USB peripheral. It is called when the short static
+* character array that forms the USB rx buffer is either filled up, or we see
+* a new-line character on the wire.
+*/
+void EventManager::feedUSBBuffer(uint8_t *buf, int len, bool terminal) {
+  usb_rx_buffer.concat(buf, len);
+
+  if (terminal) {
+    // If the ISR saw a CR or LF on the wire, we tell the parser it is ok to
+    // run in idle time.
+    ManuvrEvent* event = returnEvent(MANUVR_MSG_USER_DEBUG_INPUT);
+    event->specific_target = (EventReceiver*) this;
+    EventReceiver::raiseEvent(event);
+  }
+}
+
+
+
+void EventManager::procDirectDebugInstruction(StringBuilder* input) {
+  char *str = (char *) input->string();
+  char c = *(str);
+  uint8_t temp_byte = 0;        // Many commands here take a single integer argument.
+  if (*(str) != 0) {
+    temp_byte = atoi((char*) str+1);
+  }
+  ManuvrEvent *event = NULL;  // Pitching events is a common thing in this fxn...
+  
+  StringBuilder parse_mule;
+  
+  switch (c) {
+    case 'B':
+      if (temp_byte == 128) {
+        EventManager::raiseEvent(MANUVR_MSG_SYS_BOOTLOADER, NULL);
+        break;
+      }
+      local_log.concatf("Will only jump to bootloader if the number '128' follows the command.\n");
+      break;
+    case 'b':
+      if (temp_byte == 128) {
+        EventManager::raiseEvent(MANUVR_MSG_SYS_REBOOT, NULL);
+        break;
+      }
+      local_log.concatf("Will only reboot if the number '128' follows the command.\n");
+      break;
+
+    case '6':        // Read so many random integers...
+      { // TODO: I don't think the RNG is ever being turned off. Save some power....
+        temp_byte = (temp_byte == 0) ? PLATFORM_RNG_CARRY_CAPACITY : temp_byte;
+        for (uint8_t i = 0; i < temp_byte; i++) {
+          uint32_t x = randomInt();
+          if (x) {
+            local_log.concatf("Random number: 0x%08x\n", x);
+          }
+          else {
+            local_log.concatf("Restarting RNG\n");
+            init_RNG();
+          }
+        }
+      }
+      break;
+
+#ifdef __MANUVR_CONSOLE_SUPPORT
+
+    case 'u':
+      switch (temp_byte) {
+        case 1:
+          EventManager::raiseEvent(MANUVR_MSG_SELF_DESCRIBE, NULL);
+          break;
+        case 3:
+          EventManager::raiseEvent(MANUVR_MSG_LEGEND_MESSAGES, NULL);
+          break;
+        default:
+          break;
+      }
+      break;
+
+    case 'y':    // Power mode.
+      switch (temp_byte) {
+        case 255:
+          break;
+        default:
+          event = EventManager::returnEvent(MANUVR_MSG_SYS_POWER_MODE);
+          event->addArg((uint8_t) temp_byte);
+          EventReceiver::raiseEvent(event);
+          local_log.concatf("Power mode is now %d.\n", temp_byte);
+          break;
+      }
+      break;
+
+    case 'i':   // Debug prints.
+      if (1 == temp_byte) {
+        local_log.concat("EventManager profiling enabled.\n");
+        profiler(true);
+      }
+      else if (2 == temp_byte) {
+        printDebug(&local_log);
+      }
+      else if (6 == temp_byte) {
+        local_log.concat("EventManager profiling disabled.\n");
+        profiler(false);
+      }
+      else {
+        printDebug(&local_log);
+      }
+      break;
+
+
+    case 'v':           // Set log verbosity.
+      parse_mule.concat(str);
+      parse_mule.drop_position(0);
+      
+      event = new ManuvrEvent(MANUVR_MSG_SYS_LOG_VERBOSITY);
+      switch (parse_mule.count()) {
+        case 2:
+          event->specific_target = getSubscriberByName((const char*) (parse_mule.position_trimmed(1)));
+          local_log.concatf("Directing verbosity change to %s.\n", (NULL == event->specific_target) ? "NULL" : event->specific_target->getReceiverName());
+        case 1:
+          event->addArg((uint8_t) parse_mule.position_as_int(0));
+          break;
+        default:
+          break;
+      }
+      EventReceiver::raiseEvent(event);
+      break;
+    #endif
+
+    default:
+      // TODO: Cycle through the subscribers and check their names against the input.
+      //   If a match is found, pass the command into that class for handling.
+      break;
+  }
+  if (local_log.length() > 0) Kernel::log(&local_log);
+  last_user_input.clear();
+}
+
+
+
+
 
 
 
@@ -208,7 +517,7 @@ int8_t EventManager::raiseEvent(uint16_t code, EventReceiver* cb) {
       #ifdef __MANUVR_DEBUG
       StringBuilder output("raiseEvent():\tvalidate_insertion() failed:\n");
       output.concat(ManuvrMsg::getMsgTypeString(code));
-      StaticHub::log(&output);
+      Kernel::log(&output);
       #endif
       INSTANCE->insertion_denials++;
     }
@@ -241,7 +550,7 @@ int8_t EventManager::staticRaiseEvent(ManuvrEvent* event) {
       #ifdef __MANUVR_DEBUG
       StringBuilder output("staticRaiseEvent():\tvalidate_insertion() failed:\n");
       event->printDebug(&output);;
-      StaticHub::log(&output);
+      Kernel::log(&output);
       #endif
       INSTANCE->insertion_denials++;
     }
@@ -374,7 +683,7 @@ void EventManager::reclaim_event(ManuvrEvent* active_event) {
   bool reap_current_event = active_event->eventManagerShouldReap();
   //if (verbosity > 5) {
   //  local_log.concatf("We will%s be reaping %s.\n", (reap_current_event ? "":" not"), active_event->getMsgTypeString());
-  //  StaticHub::log(&local_log);
+  //  Kernel::log(&local_log);
   //}
 
   if (reap_current_event) {                   // If we are to reap this event...
@@ -394,7 +703,7 @@ void EventManager::reclaim_event(ManuvrEvent* active_event) {
     //}
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 
@@ -729,7 +1038,7 @@ int8_t EventManager::procIdleFlags() {
     // there was a problem. Do nothing.
   }
 
-  if (local_log.length() > 0) StaticHub::log(&local_log);
+  if (local_log.length() > 0) Kernel::log(&local_log);
   current_event = NULL;
   return return_value;
 }
@@ -848,6 +1157,7 @@ float EventManager::cpu_usage() {
 int8_t EventManager::bootComplete() {
   EventReceiver::bootComplete();
   boot_completed = true;
+  maskableInterrupts(true);  // Now configure interrupts, lift interrupt masks, and let the madness begin.
   return 1;
 }
 
@@ -867,8 +1177,19 @@ const char* EventManager::getReceiverName() {  return "EventManager";  }
 */
 void EventManager::printDebug(StringBuilder* output) {
   if (NULL == output) return;
+  uint32_t initial_sp = getStackPointer();
+  uint32_t final_sp = getStackPointer();
+
   EventReceiver::printDebug(output);
   
+  currentDateTime(output);
+  output->concatf("\n-- %s v%s    Build date: %s %s\n--\n", IDENTITY_STRING, VERSION_STRING, __DATE__, __TIME__);
+  if (verbosity > 5) output->concatf("-- boot_completed:           %s\n", (boot_completed) ? "yes" : "no");
+  if (verbosity > 6) output->concatf("-- getStackPointer()         0x%08x\n", getStackPointer());
+  if (verbosity > 6) output->concatf("-- stack grows %s\n--\n", (final_sp > initial_sp) ? "up" : "down");
+  if (verbosity > 6) output->concatf("-- millis()                  0x%08x\n", millis());
+  if (verbosity > 6) output->concatf("-- micros()                  0x%08x\n", micros());
+
   output->concatf("-- Queue depth:              %d\n", event_queue.size());
   output->concatf("-- Preallocation depth:      %d\n", preallocated.size());
   output->concatf("-- Total subscriber count:   %d\n", subscribers.size());

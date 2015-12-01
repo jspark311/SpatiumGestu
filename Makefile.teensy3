@@ -98,7 +98,8 @@ CPP_FLAGS += $(CFLAGS)
 # Source file definitions...
 ###########################################################################
 
-MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
+MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp 
+MANUVROS_SRCS += src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Platform/Platform.cpp src/ManuvrOS/Platform/PlatformTeensy3.cpp 
 
@@ -123,7 +124,7 @@ FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/tasks.c
 FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/timers.c
 
 
-SRCS   = src/SpatiumGestu.cpp src/StaticHub/*.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS) $(FREERTOS_CPP_SRC)
+SRCS   = src/SpatiumGestu.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS) $(FREERTOS_CPP_SRC)
 
 
 
@@ -145,7 +146,6 @@ lib:
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(TEENSY_PATH)libraries/i2c_t3/i2c_t3.cpp -o $(OUTPUT_PATH)/SPI.cpp.o 
 	
 	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_dev.c -o $(OUTPUT_PATH)/usb_dev.c.o
-	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_seremu.c -o $(OUTPUT_PATH)/usb_seremu.c.o 
 	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial2.c -o $(OUTPUT_PATH)/serial2.c.o 
 	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/analog.c -o $(OUTPUT_PATH)/analog.c.o 
 	$(C_CROSS)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_serial.c -o $(OUTPUT_PATH)/usb_serial.c.o 

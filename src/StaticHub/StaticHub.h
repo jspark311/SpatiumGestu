@@ -90,8 +90,6 @@ class StaticHub : public EventReceiver {
     EventManager* fetchEventManager(void);
     Scheduler* fetchScheduler(void);
 
-    MGC3130*    fetchMGC3130(void);
-    
     /* Overrides from EventReceiver */
     const char* getReceiverName();
     void printDebug(StringBuilder*);

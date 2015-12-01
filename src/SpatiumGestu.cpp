@@ -1,15 +1,12 @@
-#include "StaticHub/StaticHub.h"
 #include "FirmwareDefs.h"
-#include <ManuvrOS/EventManager.h>
-#include <ManuvrOS/Scheduler.h>
+#include <ManuvrOS/Platform/Platform.h>
+#include <ManuvrOS/Kernel.h>
 #include <StringBuilder/StringBuilder.h>
 
 #define HOST_BAUD_RATE  115200
 
 
-StaticHub*    sh            = NULL;
-Scheduler*    scheduler     = NULL;
-EventManager* event_manager = NULL;
+EventManager* kernel = NULL;
 
 
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
@@ -22,12 +19,11 @@ void mainTaskFxn( void *pvParameters );
 void schedulerTaskFxn( void *pvParameters );
 void loggerTask( void *pvParameters );
 
-
 #else
 const int MANUVR_LOGO_LED = 4;
 
 uint32_t timerCallbackScheduler(uint32_t currentTime) {  
-  if (scheduler) scheduler->advanceScheduler(); 
+  if (kernel) kernel->advanceScheduler(); 
   return (currentTime + (CORE_TICK_RATE * 1));
 }
 #endif
@@ -61,17 +57,20 @@ void setup() {
   pinMode(PIN_LED1,         OUTPUT);
   pinMode(MANUVR_LOGO_LED,  OUTPUT);
   
+  EventManager __kernel;  // Instance the kernel.
+  kernel = &__kernel;
+  
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 6000, (void*)sh, 1, NULL );
-  
+  xTaskCreate(mainTaskFxn, "Main", 6000, NULL, 1, NULL );
+
   // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Sched", 40, (void*)scheduler, 1, NULL );
-  xTaskCreate(loggerTask, "Logger", 40, (void*)sh, 1, NULL);
+  xTaskCreate(schedulerTaskFxn, "Sched", 40, (void*)kernel, 1, NULL );
+  xTaskCreate(loggerTask, "Logger", 40, (void*)kernel, 1, NULL);
   
   vTaskStartScheduler();
-  for( ;; );
+  for(;;);
   
   #elif defined(_BOARD_FUBARINO_MINI_)
   attachCoreTimerService(timerCallbackScheduler);
@@ -85,62 +84,57 @@ void setup() {
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
 
 void mainTaskFxn(void *pvParameters) {
-  unsigned char* ser_buffer = (unsigned char*) alloca(128);
+  unsigned char* ser_buffer = (unsigned char*) alloca(255);
   int bytes_read = 0;
   
-  sh = StaticHub::getInstance();
-  event_manager = sh->fetchEventManager();
-  scheduler     = sh->fetchScheduler();
-  
-  scheduler->createSchedule(40, -1, false, logo_fade);
-  scheduler->createSchedule(25, -1, false, blink_led);
+  kernel->createSchedule(40, -1, false, logo_fade);
+  kernel->createSchedule(25, -1, false, blink_led);
 
   /* As per most tasks, this task is implemented in an infinite loop. */
-  for( ;; ) {
-    if (sh) {
-      sh->fetchEventManager()->procIdleFlags();
-      sh->fetchScheduler()->serviceScheduledEvents();
-      
-      if (Serial.available()) {
-        // Zero the buffer.
-        bytes_read = 0;
-        for (int i = 0; i < 128; i++) *(ser_buffer+i) = 0;
-        char c = 0;
-        while (Serial.available()) {
-          c = Serial.read();
-          *(ser_buffer+bytes_read++) = c;
-        }
-        
-        sh->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
+  for(;;) {
+    kernel->procIdleFlags();
+    kernel->serviceScheduledEvents();
+    
+    if (Serial.available()) {
+      // Zero the buffer.
+      bytes_read = 0;
+      for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
+      char c = 0;
+      while (Serial.available()) {
+        c = Serial.read();
+        *(ser_buffer+bytes_read++) = c;
       }
+      
+      kernel->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
     }
   }
 }
 
 
 void schedulerTaskFxn(void *pvParameters) {
-  /* As per most tasks, this task is implemented in an infinite loop. */
-  for( ;; ) {
-    if (sh) sh->fetchScheduler()->advanceScheduler();
+  for(;;) {
+    // TODO: This sucks. There must be a better way of having the kernel's
+    //   sense of time not being subservient to FreeRTOS's...
+    kernel->advanceScheduler();
     vTaskDelay( 2 / portTICK_PERIOD_MS );
   }
 }
 
 
 void loggerTask(void *pvParameters) {
-  /* As per most tasks, this task is implemented in an infinite loop. */
   for(;;) {
-    if (StaticHub::log_buffer.count()) {
-      if (!sh->getVerbosity()) {
-        StaticHub::log_buffer.clear();
+    if (EventManager::log_buffer.count()) {
+      if (!kernel->getVerbosity()) {
+        EventManager::log_buffer.clear();
       }
       else {
-        //printf("%s", StaticHub::log_buffer.position(0));
-        Serial.print((char*) StaticHub::log_buffer.position(0));
-        StaticHub::log_buffer.drop_position(0);
+        //printf("%s", Kernel::log_buffer.position(0));
+        Serial.print((char*) EventManager::log_buffer.position(0));
+        EventManager::log_buffer.drop_position(0);
       }
     }
     else {
+      // Nothing more to do.
       taskYIELD();
     }
   }
@@ -158,8 +152,8 @@ void loop() {
 
   while (1) {   // Service this loop for-ev-ar
     while (Serial.available() == 0) {
-      event_manager->procIdleFlags();
-      scheduler->serviceScheduledEvents();
+      kernel->procIdleFlags();
+      kernel->serviceScheduledEvents();
     }
 
     // Zero the buffer.
@@ -171,7 +165,7 @@ void loop() {
       *(ser_buffer+bytes_read++) = c;
     }
     
-    sh->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
+    kernel->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
   }
 }
 

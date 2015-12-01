@@ -30,7 +30,7 @@ This class is a driver for Microchip's MGC3130 e-field gesture sensor. It is mea
 
 */
 
-#include "StaticHub/StaticHub.h"
+#include <ManuvrOS/Kernel.h>
 #include "MGC3130.h"
 #include <StringBuilder/StringBuilder.h>
 
@@ -477,7 +477,7 @@ void MGC3130::dispatchGestureEvents() {
     #ifdef __MANUVR_DEBUG
     if (verbosity > 3) {
       local_log.concatf("MGC3130 special code 0x08\n", special);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     special = 0;
@@ -487,7 +487,7 @@ void MGC3130::dispatchGestureEvents() {
     #ifdef __MANUVR_DEBUG
     if (verbosity > 3) {
       local_log.concatf("MGC3130 last_event 0x08\n", last_event);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     last_event = 0;
@@ -542,7 +542,7 @@ void MGC3130::operationCompleteCallback(I2CQueuedOperation* completed) {
             // data ought to always be 0x91 at this point.
             //if (0x91 != data) {
             //  local_log.concatf("UniqueID: 0x%02x\n", data);
-            //  StaticHub::log(&local_log);
+            //  Kernel::log(&local_log);
             //}
             break;
           case 4:   // Data output config mask is a 16-bit value.
@@ -662,7 +662,7 @@ void MGC3130::operationCompleteCallback(I2CQueuedOperation* completed) {
     if (verbosity > 3) {
       local_log.concat("An i2c operation requested by the MGC3130 came back failed.\n");
       completed->printDebug(&local_log);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
   }
@@ -789,7 +789,7 @@ int8_t MGC3130::notify(ManuvrEvent *active_event) {
       break;
   }
       
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
   return return_value;
 }
 
@@ -808,7 +808,7 @@ void MGC3130::procDirectDebugInstruction(StringBuilder *input) {
   }
   
 #endif
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 

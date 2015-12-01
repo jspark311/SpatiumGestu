@@ -91,7 +91,7 @@ const char* I2CQueuedOperation::getStateString(uint8_t code) {
 void I2CQueuedOperation::printDebug(void) {
 	StringBuilder temp;
 	this->printDebug(&temp);
-	StaticHub::log(&temp);
+	Kernel::log(&temp);
 }
 
 
@@ -269,7 +269,7 @@ int8_t I2CQueuedOperation::init_dma() {
 
 #endif
 
-  //if (local_log.length() > 0) StaticHub::log(&local_log);
+  //if (local_log.length() > 0) Kernel::log(&local_log);
   return return_value;
 }
 
@@ -296,7 +296,7 @@ int8_t I2CQueuedOperation::advance_operation(uint32_t status_reg) {
         if (opcode == I2C_OPERATION_PING) {
           markComplete();
           device->generateStop();
-          if (output.length() > 0) StaticHub::log(&output);
+          if (output.length() > 0) Kernel::log(&output);
           return 0;
         }
         // We are ready to send the address...
@@ -389,7 +389,7 @@ int8_t I2CQueuedOperation::advance_operation(uint32_t status_reg) {
   }
   
 #endif
-  if (output.length() > 0) StaticHub::log(&output);
+  if (output.length() > 0) Kernel::log(&output);
   return 0;
 }
 

@@ -24,7 +24,7 @@ XenoSession is the class that manages dialog with other systems via some
 */
 
 #include "XenoSession.h"
-#include "StaticHub/StaticHub.h"
+#include <ManuvrOS/Kernel.h>
 
 
 
@@ -85,7 +85,7 @@ void XenoSession::reclaimPreallocation(XenoMessage* obj) {
     #ifdef __MANUVR_DEBUG
     if (verbosity > 3) {
       local_log.concatf("reclaim via prealloc. addr: 0x%08x\n", obj_addr);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     obj->wipe();
@@ -95,7 +95,7 @@ void XenoSession::reclaimPreallocation(XenoMessage* obj) {
     #ifdef __MANUVR_DEBUG
     if (verbosity > 3) {
       local_log.concatf("reclaim via delete. addr: 0x%08x\n", obj_addr);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     // We were created because our prealloc was starved. we are therefore a transient heap object.
@@ -192,7 +192,7 @@ int8_t XenoSession::tapMessageType(uint16_t code) {
     case MANUVR_MSG_SESS_DUMP_DEBUG:
 //    case MANUVR_MSG_SESS_HANGUP:
       #ifdef __MANUVR_DEBUG
-      if (verbosity > 3) StaticHub::log("tapMessageType() tried to tap a blacklisted code.\n");
+      if (verbosity > 3) Kernel::log("tapMessageType() tried to tap a blacklisted code.\n");
       #endif
       return -1;
   }
@@ -406,7 +406,7 @@ int8_t XenoSession::notify(ManuvrEvent *active_event) {
     }
   }
   
-  if (local_log.length() > 0) StaticHub::log(&local_log);
+  if (local_log.length() > 0) Kernel::log(&local_log);
   return return_value;
 }
 
@@ -431,7 +431,7 @@ int XenoSession::purgeOutbound() {
     if (verbosity > 6) {
       local_log.concat("\nDestroying outbound msg:\n");
       temp->printDebug(&local_log);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     delete temp;
@@ -455,7 +455,7 @@ int XenoSession::purgeInbound() {
     if (verbosity > 6) {
       local_log.concat("\nDestroying inbound msg:\n");
       temp->printDebug(&local_log);
-      StaticHub::log(&local_log);
+      Kernel::log(&local_log);
     }
     #endif
     delete temp;
@@ -610,7 +610,7 @@ void XenoSession::mark_session_desync(uint8_t ds_src) {
   }
   scheduler->enableSchedule(pid_sync_timer);
   
-  if (local_log.length() > 0) StaticHub::log(&local_log);
+  if (local_log.length() > 0) Kernel::log(&local_log);
 }
 
 
@@ -699,7 +699,7 @@ int8_t XenoSession::bin_stream_rx(unsigned char *buf, int len) {
       else {
         #ifdef __MANUVR_DEBUG
         if (verbosity > 2) local_log.concat("Session still out of sync.\n");
-        StaticHub::log(&local_log);
+        Kernel::log(&local_log);
         #endif
         return return_value;
       }
@@ -815,7 +815,7 @@ int8_t XenoSession::bin_stream_rx(unsigned char *buf, int len) {
     #endif
   }
   
-  if (local_log.length() > 0) StaticHub::log(&local_log);
+  if (local_log.length() > 0) Kernel::log(&local_log);
   return return_value;
 }
 
@@ -1029,7 +1029,7 @@ void XenoSession::procDirectDebugInstruction(StringBuilder *input) {
       break;
   }
   
-  if (local_log.length() > 0) {    StaticHub::log(&local_log);  }
+  if (local_log.length() > 0) {    Kernel::log(&local_log);  }
 }
 
 
