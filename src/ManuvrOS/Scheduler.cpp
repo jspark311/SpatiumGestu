@@ -418,7 +418,7 @@ void Scheduler::advanceScheduler() {
       /* Doing all this String manipulation in an ISR would normally be an awful idea.
          But we don't care here because we're hung anyhow, and we need to know why. */
       StringBuilder output;
-      StaticHub::getInstance()->fetchKernel()->printDebug(&output);
+      Kernel::getInstance()->fetchKernel()->printDebug(&output);
       printf("%s\n", (char*) output.string());
     }
     else if (skipped_loops == 2200) {
@@ -428,7 +428,7 @@ void Scheduler::advanceScheduler() {
     }
     else if (skipped_loops == 3500) {
       StringBuilder output;
-      StaticHub::getInstance()->printDebug(&output);
+      Kernel::getInstance()->printDebug(&output);
       printf("%s\n", (char*) output.string());
     }
     skipped_loops++;
