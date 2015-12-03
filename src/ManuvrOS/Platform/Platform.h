@@ -57,12 +57,14 @@ This file is meant to contain a set of common functions that are typically platf
 #define MANUVR_RTC_STARTUP_GOOD_UNSET     0x23196402
 #define MANUVR_RTC_STARTUP_GOOD_SET       0x23196403
 
-/*
-* These are constants where we care about the number.
-*/
-#define PLATFORM_RNG_CARRY_CAPACITY           10     // How many random numbers should be cached? 
 
 class ManuvrEvent;
+
+
+#ifdef __cplusplus
+ extern "C" {
+#endif 
+
 
 #ifdef ARDUINO
   #include <Arduino.h>
@@ -80,11 +82,6 @@ typedef struct __platform_gpio_def {
   uint16_t        mode;  // Strictly more than needed. Padding structure...
 } PlatformGPIODef;
 
-
-#ifdef __cplusplus
- extern "C" {
-#endif 
-
 /*
 * Time and date
 */
@@ -101,14 +98,28 @@ const char* getRTCStateString(uint32_t code);
 */
 
 /*
-* Misc
+* Interrupt-masking
 */
-volatile uint32_t getStackPointer();   // Returns the value of the stack pointer.
-volatile void jumpToBootloader();
-volatile void reboot();
 void globalIRQEnable();
 void globalIRQDisable();
 void maskableInterrupts(bool);
+
+/*
+* Process control
+*/
+volatile void jumpToBootloader();
+volatile void seppuku();
+
+/*
+* Underlying system control.
+*/
+volatile void reboot();
+volatile void shutdown();
+
+/*
+* Misc
+*/
+volatile uint32_t getStackPointer();   // Returns the value of the stack pointer.
 
 /*
 * Randomness
@@ -130,7 +141,9 @@ void setPinFxn(uint8_t pin, FunctionPointer fxn);
 /*
 * Call this once on system init to configure the basics of the platform.
 */
+void platformPreInit();
 void platformInit();
+
 
 
 #ifdef __cplusplus

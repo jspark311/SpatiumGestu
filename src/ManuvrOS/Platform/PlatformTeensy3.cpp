@@ -38,6 +38,16 @@ This file is meant to contain a set of common functions that are typically platf
 
 #define PLATFORM_GPIO_PIN_COUNT   33
 
+#ifdef __cplusplus
+ extern "C" {
+#endif
+
+
+/****************************************************************************************************
+* The code under this block is special on this platform, and will not be available elsewhere.       *
+****************************************************************************************************/
+time_t getTeensy3Time() {   return Teensy3Clock.get();   }
+
 
 
 /****************************************************************************************************
@@ -95,8 +105,6 @@ void init_RNG() {
 * Time and date                                                                                     *
 ****************************************************************************************************/
 uint32_t rtc_startup_state = MANUVR_RTC_STARTUP_UNINITED;
-
-time_t getTeensy3Time() {   return Teensy3Clock.get();   }
 
 
 /*
@@ -207,36 +215,6 @@ void setPinFxn(uint8_t pin, FunctionPointer fxn) {
 /****************************************************************************************************
 * Misc                                                                                              *
 ****************************************************************************************************/
-
-volatile void jumpToBootloader() {
-  cli();  
-  _reboot_Teensyduino_();
-}
-
-volatile void reboot() {
-  cli();
-  *((uint32_t *)0xE000ED0C) = 0x5FA0004;
-}
-
-void globalIRQEnable() {     sei();    }
-void globalIRQDisable() {    cli();    }
-
-/*
-* Call this with a boolean to enable or disable maskable interrupts globally.
-* NOTE: This includes USB and SysTick. So no host communication, and no scheduler.
-*       Events ought to still work, however.
-*/
-void maskableInterrupts(bool enable) {
-  if (enable) {
-    sei();
-  }
-  else {
-    cli();
-  }
-}
-
-
-
 /**
 * Sometimes we question the size of the stack.
 *
@@ -249,10 +227,88 @@ volatile uint32_t getStackPointer() {
 }
 
 
+/****************************************************************************************************
+* Interrupt-masking                                                                                 *
+****************************************************************************************************/
 
+void globalIRQEnable() {     sei();    }
+void globalIRQDisable() {    cli();    }
+
+
+
+/****************************************************************************************************
+* Process control                                                                                   *
+****************************************************************************************************/
+
+/*
+* Terminate this running process, along with any children it may have forked() off.
+* Never returns.
+*/
+volatile void seppuku() {
+  // This means "Halt" on a base-metal build.
+  cli();
+  while(true);
+}
+
+
+/*
+* Jump to the bootloader.
+* Never returns.
+*/
+volatile void jumpToBootloader() {
+  cli();
+  _reboot_Teensyduino_();
+}
+
+
+/****************************************************************************************************
+* Underlying system control.                                                                        *
+****************************************************************************************************/
+
+/*
+* This means "Halt" on a base-metal build.
+* Never returns.
+*/
+volatile void shutdown() {
+  cli();
+  while(true);
+}
+
+/*
+* Causes immediate reboot.
+* Never returns.
+*/
+volatile void reboot() {
+  cli();
+  *((uint32_t *)0xE000ED0C) = 0x5FA0004;
+}
+
+
+
+/****************************************************************************************************
+* Platform initialization.                                                                          *
+****************************************************************************************************/
+
+/*
+* Init that needs to happen prior to kernel bootstrap().
+* This is the final function called by the kernel constructor.
+*/
+void platformPreInit() {
+  gpioSetup();
+}
+
+
+/*
+* Called as a result of kernels bootstrap() fxn. 
+*/
 void platformInit() {
   start_time_micros = micros();
-  gpioSetup();
   init_RNG();
 }
+
+
+
+#ifdef __cplusplus
+ }
+#endif
 

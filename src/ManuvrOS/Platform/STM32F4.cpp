@@ -1,7 +1,7 @@
 /*
-File:   Platform.cpp
+File:   STM32F4.cpp
 Author: J. Ian Lindsay
-Date:   2015.11.01
+Date:   2015.12.02
 
 
 Copyright (C) 2014 J. Ian Lindsay
@@ -28,16 +28,15 @@ This file is meant to contain a set of common functions that are typically platf
     * Access the realtime clock (if applicatble)
     * Get definitions for GPIO pins.
     * Access a true RNG (if it exists)
-    
-This file forms the catch-all for linux platforms that have no support.
 */
 
 #include "Platform.h"
-#include <ManuvrOS/Kernel.h>
 
-#include <sys/time.h>
+#include <wiring.h>
+#include <Time/Time.h>
 #include <unistd.h>
-#include <signal.h>
+
+#define PLATFORM_GPIO_PIN_COUNT   33
 
 #ifdef __cplusplus
  extern "C" {
@@ -47,124 +46,6 @@ This file forms the catch-all for linux platforms that have no support.
 /****************************************************************************************************
 * The code under this block is special on this platform, and will not be available elsewhere.       *
 ****************************************************************************************************/
-volatile Kernel* __kernel = NULL;
-
-struct itimerval _interval              = {0};
-struct sigaction _signal_action_SIGALRM = {0};
-
-#define MANUVR_PLATFORM_TIMER_PERIOD_MS 10 
-
-
-bool set_linux_interval_timer() {
-  _interval.it_value.tv_sec      = 0;
-  _interval.it_value.tv_usec     = MANUVR_PLATFORM_TIMER_PERIOD_MS * 1000;
-  _interval.it_interval.tv_sec   = 0;
-  _interval.it_interval.tv_usec  = MANUVR_PLATFORM_TIMER_PERIOD_MS * 1000;
-  
-  int err = setitimer(ITIMER_VIRTUAL, &_interval, NULL);
-  if (err) {
-    Kernel::log("Failed to enable interval timer.");
-  }
-  return (0 == err);
-}
-
-bool unset_linux_interval_timer() {
-  // TODO: We ultimately need to be retaining the values in the struct, as well as
-  //   the current system time to calculate the delta in case we get re-enabled.
-  _interval.it_value.tv_sec      = 0;
-  _interval.it_value.tv_usec     = 0;
-  _interval.it_interval.tv_sec   = 0;
-  _interval.it_interval.tv_usec  = 0;
-  return true;
-}
-
-
-void sig_handler(int signo) {
-  switch (signo) {
-    case SIGINT:
-      Kernel::log("Received a SIGINT signal. Closing up shop...");
-      jumpToBootloader();
-      break;
-    case SIGKILL:
-      Kernel::log("Received a SIGKILL signal. Something bad must have happened. Exiting hard....");
-      jumpToBootloader();
-      break;
-    case SIGTERM:
-      Kernel::log("Received a SIGTERM signal. Closing up shop...");
-      jumpToBootloader();
-      break;
-    case SIGQUIT:
-      Kernel::log("Received a SIGQUIT signal. Closing up shop...");
-      jumpToBootloader();
-      break;
-    case SIGHUP:
-      printf("Received a SIGHUP signal. Closing up shop...");
-      jumpToBootloader();
-      break;
-    case SIGSTOP:
-      Kernel::log("Received a SIGSTOP signal. Closing up shop...");
-      jumpToBootloader();
-      break;
-    case SIGUSR1:
-      break;
-    case SIGUSR2:
-      break;
-    default:
-      Kernel::log(__PRETTY_FUNCTION__, LOG_NOTICE, "Unhandled signal: %d", signo);
-      break;
-  }
-
-  // Echo whatever signals we receive to the child proc (if we are the parent).
-  //if ((looper_pid > 0) && (signo != SIGALRM) && (signo != SIGUSR2)) {
-  //  kill(looper_pid, signo);
-  //}
-}
-
-
-void linux_timer_handler(int sig_num) {
-  ((Kernel*)__kernel)->advanceScheduler(MANUVR_PLATFORM_TIMER_PERIOD_MS);
-}
-
-
-// The parent process should call this function to set the callback address to its signal handlers.
-//     Returns 1 on success, 0 on failure.
-// TODO: Convert all other signals over to sigaction().
-int initSigHandlers() {
-  int return_value    = 1;
-  // Try to open a binding to listen for signals from the OS...
-  if (signal(SIGINT, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGINT to the signal system. Failing...");
-    return_value = 0;
-  }
-  if (signal(SIGQUIT, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGQUIT to the signal system. Failing...");
-    return_value = 0;
-  }
-  if (signal(SIGHUP, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGHUP to the signal system. Failing...");
-    return_value = 0;
-  }
-  if (signal(SIGTERM, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGTERM to the signal system. Failing...");
-    return_value = 0;
-  }
-  if (signal(SIGUSR1, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGUSR1 to the signal system. Failing...");
-    return_value = 0;
-  }
-  if (signal(SIGUSR2, sig_handler) == SIG_ERR) {
-    Kernel::log("Failed to bind SIGUSR2 to the signal system. Failing...");
-    return_value = 0;
-  }
-  
-  _signal_action_SIGALRM.sa_handler   = &linux_timer_handler;
-  if (sigaction(SIGVTALRM, &_signal_action_SIGALRM, NULL)) {
-    Kernel::log("Failed to bind to SIGVTALRM.");
-    return_value = 0;
-  }
-
-  return return_value;
-}
 
 
 
@@ -200,6 +81,12 @@ uint32_t randomInt() {
 * @return   True if the RNG should continue supplying us, false if it should take a break until we need more.
 */
 volatile bool provide_random_int(uint32_t nu_rnd) {
+  for (uint8_t i = 0; i < PLATFORM_RNG_CARRY_CAPACITY; i++) {
+    if (next_random_int[i] == 0) {
+      next_random_int[i] = nu_rnd;
+      return (i == PLATFORM_RNG_CARRY_CAPACITY-1) ? false : true;
+    }
+  }
   return false;
 }
 
@@ -207,7 +94,8 @@ volatile bool provide_random_int(uint32_t nu_rnd) {
 * Init the RNG. Short and sweet.
 */
 void init_RNG() {
-  srand(time(NULL));          // Seed the PRNG...
+  for (uint8_t i = 0; i < PLATFORM_RNG_CARRY_CAPACITY; i++) next_random_int[i] = 0;
+  srand(Teensy3Clock.get());          // Seed the PRNG...
 }
 
 
@@ -222,7 +110,13 @@ uint32_t rtc_startup_state = MANUVR_RTC_STARTUP_UNINITED;
 *
 */
 bool initPlatformRTC() {
-  rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_UNSET;
+  setSyncProvider(getTeensy3Time);
+  if (timeStatus() != timeSet) {
+    rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_UNSET;
+  }
+  else {
+    rtc_startup_state = MANUVR_RTC_STARTUP_GOOD_SET;
+  }
   return true;
 }
 
@@ -237,12 +131,12 @@ bool setTimeAndDate(char* nu_date_time) {
 }
 
 
+
 /*
 * Returns an integer representing the current datetime.
 */
-uint32_t currentTimestamp(void) {
-  uint32_t return_value = 0;
-  return return_value;
+uint32_t epochTime(void) {
+  return 0;
 }
 
 
@@ -253,33 +147,26 @@ uint32_t currentTimestamp(void) {
 */
 void currentDateTime(StringBuilder* target) {
   if (target != NULL) {
+    target->concatf("%04d-%02d-%02dT", year(), month(), day());
+    target->concatf("%02d:%02d:%02d+00:00", hour(), minute(), second());
   }
 }
 
-
-/*
-* Not provided elsewhere on a linux platform.
-*/
-uint32_t millis() {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * 1000 + ts.tv_nsec / 1000000L);
-}
-
-
-/*
-* Not provided elsewhere on a linux platform.
-*/
-uint32_t micros() {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * 1000000L + ts.tv_nsec / 1000L);
-}
 
 
 /****************************************************************************************************
 * GPIO and change-notice                                                                            *
 ****************************************************************************************************/
+
+/*
+*
+*/
+volatile PlatformGPIODef gpio_pins[PLATFORM_GPIO_PIN_COUNT];
+
+void pin_isr_pitch_event() {
+}
+
+
 /*
 * This fxn should be called once on boot to setup the CPU pins that are not claimed
 *   by other classes. GPIO pins at the command of this-or-that class should be setup 
@@ -288,6 +175,34 @@ uint32_t micros() {
 *   individual classes work out their own requirements.
 */
 void gpioSetup() {
+  // Null-out all the pin definitions in preparation for assignment.
+  for (uint8_t i = 0; i < PLATFORM_GPIO_PIN_COUNT; i++) {
+    gpio_pins[i].event = 0;      // No event assigned.
+    gpio_pins[i].fxn   = 0;      // No function pointer.
+    gpio_pins[i].mode  = INPUT;  // All pins begin as inputs.
+    gpio_pins[i].pin   = i;      // The pin number.
+  }
+}
+
+
+int8_t gpioDefine(uint8_t pin, uint8_t mode) {
+  pinMode(pin, mode);
+  return 0;
+}
+
+
+void unsetPinIRQ(uint8_t pin) {
+}
+
+
+void setPinEvent(uint8_t pin, ManuvrEvent* isr_event) {
+}
+
+
+/*
+* Pass the function pointer
+*/
+void setPinFxn(uint8_t pin, FunctionPointer fxn) {
 }
 
 
@@ -315,19 +230,8 @@ volatile uint32_t getStackPointer() {
 * Interrupt-masking                                                                                 *
 ****************************************************************************************************/
 
-// Ze interrupts! Zhey do nuhsing!
-// TODO: Perhaps raise the nice value?
-// At minimum, turn off the periodic timer, since this is what would happen on
-//   other platforms.
-void globalIRQEnable() {  
-  // TODO: Need to stack the time remaining. 
-  //set_linux_interval_timer();
-}
-
-void globalIRQDisable() { 
-  // TODO: Need to unstack the time remaining and fire any schedules.
-  //unset_linux_interval_timer();
-}
+void globalIRQEnable() {     asm volatile ("cpsid i");    }
+void globalIRQDisable() {    asm volatile ("cpsie i");    }
 
 
 
@@ -337,25 +241,22 @@ void globalIRQDisable() {
 
 /*
 * Terminate this running process, along with any children it may have forked() off.
+* Never returns.
 */
 volatile void seppuku() {
-  // Whatever the kernel cared to clean up, it better have done so by this point,
-  //   as no other platforms return from this function.
-  if (Kernel::log_buffer.length() > 0) {
-    printf("\n\njumpToBootloader(): About to exit(). Remaining log follows...\n%s", Kernel::log_buffer.string());
-  }
-  printf("\n\n");
-  exit(0);
+  // This means "Halt" on a base-metal build.
+  globalIRQDisable();
+  while(true);
 }
 
 
 /*
-* On linux, we take this to mean: scheule a program restart with the OS,
-*   and then terminate this one.
+* Jump to the bootloader.
+* Never returns.
 */
 volatile void jumpToBootloader() {
-  // TODO: Schedule a program restart.
-  seppuku();
+  globalIRQDisable();
+  //_reboot_Teensyduino_();
 }
 
 
@@ -363,12 +264,22 @@ volatile void jumpToBootloader() {
 * Underlying system control.                                                                        *
 ****************************************************************************************************/
 
+/*
+* This means "Halt" on a base-metal build.
+* Never returns.
+*/
 volatile void shutdown() {
-  // TODO: Actually shutdown the system.
+  globalIRQDisable();
+  while(true);
 }
 
+/*
+* Causes immediate reboot.
+* Never returns.
+*/
 volatile void reboot() {
-  // TODO: Actually reboot the system.
+  globalIRQDisable();
+  *((uint32_t *)0xE000ED0C) = 0x5FA0004;
 }
 
 
@@ -382,7 +293,6 @@ volatile void reboot() {
 * This is the final function called by the kernel constructor.
 */
 void platformPreInit() {
-  __kernel = (volatile Kernel*) Kernel::getInstance();
   gpioSetup();
 }
 
@@ -393,10 +303,6 @@ void platformPreInit() {
 void platformInit() {
   start_time_micros = micros();
   init_RNG();
-  initPlatformRTC();
-  __kernel = (volatile Kernel*) Kernel::getInstance();
-  initSigHandlers();
-  set_linux_interval_timer();
 }
 
 

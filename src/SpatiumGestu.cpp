@@ -63,6 +63,24 @@ void setup() {
   kernel->createSchedule(40, -1, false, logo_fade);
   kernel->createSchedule(25, -1, false, blink_led);
 
+//  mcp73833 = new MCP73833(9, 10);
+  
+  // Setup the first i2c adapter and Subscribe it to Kernel.
+//  i2c     = new I2CAdapter(0);
+//  mgc3130 = new MGC3130(16, 17);
+
+//  ina219      = new INA219(0x4A);
+//  adp8866     = new ADP8866(7, 8, 0x27);
+
+//  event_manager.subscribe((EventReceiver*) i2c);
+//  event_manager.subscribe((EventReceiver*) adp8866);
+
+//  ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
+//  ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
+  
+//  mgc3130->init();
+
+
   __kernel.bootstrap();
   
   #if defined(__MK20DX256__) | defined(__MK20DX128__)

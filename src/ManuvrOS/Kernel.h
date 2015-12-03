@@ -7,6 +7,7 @@
   #include "EnumeratedTypeCodes.h"
   #include <ManuvrOS/CommonConstants.h>
   
+  #include "FirmwareDefs.h"
   #include "ManuvrEvent.h"
   #include "EventManager.h"
   #include "DataStructures/PriorityQueue.h"
@@ -16,14 +17,30 @@
 
   #include <ManuvrOS/MsgProfiler.h>
 
+  #define EVENT_PRIORITY_HIGHEST            100
+  #define EVENT_PRIORITY_DEFAULT              2
+  #define EVENT_PRIORITY_LOWEST               0
+
+
+  #if defined(__MANUVR_CONSOLE_SUPPORT) || defined(__MANUVR_DEBUG)
+    #ifdef __MANUVR_DEBUG
+      #define DEFAULT_CLASS_VERBOSITY    7
+    #else
+      #define DEFAULT_CLASS_VERBOSITY    4
+    #endif
+  #else
+    #define DEFAULT_CLASS_VERBOSITY      0
+  #endif
+
+
   #ifdef __cplusplus
    extern "C" {
   #endif
 
   typedef int (*listenerFxnPtr) (ManuvrEvent*);
-  
+
   extern uint32_t micros();  // TODO: Only needed for a single inline fxn. Retain?
-  
+
 /* Type for schedule items... */
 class ScheduleItem {
   public:
@@ -125,7 +142,8 @@ class Scheduler : public EventReceiver {
     bool willRunAgain(uint32_t g_pid);                  // Returns true if the indicated schedule will fire again.
 
     int serviceScheduledEvents(void);        // Execute any schedules that have come due.
-    void advanceScheduler(void);              // Push all enabled schedules forward by one tick.
+    void advanceScheduler(void);             // Push all enabled schedules forward by one tick.
+    void advanceScheduler(unsigned int);     // Push all enabled schedules forward by one tick.
     
     const char* getReceiverName();
 
@@ -151,11 +169,11 @@ class Scheduler : public EventReceiver {
     uint32_t clicks_in_isr;
     uint32_t total_skipped_loops;
     uint32_t lagged_schedules;
-    
+
     /* These members are concerned with reliability. */
     uint16_t skipped_loops;
     bool     bistable_skip_detect;  // Set in advanceScheduler(), cleared in serviceScheduledEvents().
-    
+    uint32_t _ms_elapsed;
     
     bool alterSchedule(ScheduleItem *obj, uint32_t sch_period, int16_t recurrence, bool auto_clear, FunctionPointer sch_callback);
 
@@ -208,17 +226,14 @@ class Scheduler : public EventReceiver {
       volatile static void log(char *str);                                           // Pass-through to the logger class, whatever that happens to be.
       volatile static void log(StringBuilder *str);
 
+      int8_t bootstrap(void);
+
       /*
       TODO: These functions were the last things removed from StaticHub. 
-      They need to justify their existence.
       */
-      static StringBuilder log_buffer;
       void feedUSBBuffer(uint8_t *buf, int len, bool terminal);
-      static Kernel* getInstance(void);
-      int8_t bootstrap(void);
-      StringBuilder usb_rx_buffer;    // Was private in StaticHub
-      StringBuilder last_user_input;  // Was private in StaticHub
-      
+
+
 
       /*
       TODO: This particular pile of garbage is temporary pass-through for the Scheduler.
@@ -251,6 +266,9 @@ class Scheduler : public EventReceiver {
       inline void advanceScheduler() { 
         __scheduler.advanceScheduler();
       }
+      inline void advanceScheduler(unsigned int ms_elapsed) { 
+        __scheduler.advanceScheduler(ms_elapsed);
+      }
 
       
       /*
@@ -271,18 +289,25 @@ class Scheduler : public EventReceiver {
       
       void profiler(bool enabled);
       
+      #if defined(__MANUVR_DEBUG)
+        void print_type_sizes();      // Prints the memory-costs of various classes.
+      #endif
       void printProfiler(StringBuilder *);
       const char* getReceiverName();
-      void printDebug(StringBuilder *);
+      
+      // Logging messages, as well as an override to log locally.
+      void printDebug(StringBuilder*);
+      inline void printDebug() {
+        printDebug(&local_log);
+      };
       
       float cpu_usage();
-      
-      bool containsPreformedEvent(ManuvrEvent*);
       
       
       inline void maxEventsPerLoop(int8_t nu) { max_events_per_loop = nu;   }
       inline int8_t maxEventsPerLoop() {        return max_events_per_loop; }
       inline int queueSize() {                  return INSTANCE->event_queue.size();   }
+      inline bool containsPreformedEvent(ManuvrEvent* event) {   return event_queue.contains(event);  };
       
 
       /* Overrides from EventReceiver
@@ -292,11 +317,14 @@ class Scheduler : public EventReceiver {
       int8_t callback_proc(ManuvrEvent *);
       void procDirectDebugInstruction(StringBuilder *);
 
-  
-      static int8_t raiseEvent(uint16_t event_code, EventReceiver* data);
-      static int8_t staticRaiseEvent(ManuvrEvent* event);
-      static bool   abortEvent(ManuvrEvent* event);
-      static int8_t isrRaiseEvent(ManuvrEvent* event);
+
+      static StringBuilder log_buffer;
+
+      static Kernel* getInstance(void);
+      static int8_t  raiseEvent(uint16_t event_code, EventReceiver* data);
+      static int8_t  staticRaiseEvent(ManuvrEvent* event);
+      static bool    abortEvent(ManuvrEvent* event);
+      static int8_t  isrRaiseEvent(ManuvrEvent* event);
       
       /* Factory method. Returns a preallocated Event. */
       static ManuvrEvent* returnEvent(uint16_t event_code);
@@ -344,7 +372,6 @@ class Scheduler : public EventReceiver {
       
       /*  */
       inline bool should_run_another_event(int8_t loops, uint32_t begin) {     return (max_events_per_loop ? ((int8_t) max_events_per_loop > loops) : ((micros() - begin) < 1200));   };
-      
       
       static Kernel* INSTANCE;
       static PriorityQueue<ManuvrEvent*> isr_event_queue;   // Events that have been raised from ISRs.
