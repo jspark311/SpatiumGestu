@@ -69,7 +69,7 @@ CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 #CFLAGS += -MMD
 CFLAGS += -fstack-usage
-CFLAGS += -D__MANUVR_CONSOLE_SUPPORT -D__MANUVR_DEBUG
+CFLAGS += -D__MANUVR_DEBUG
 
 CPP_FLAGS = -std=$(CPP_STANDARD) 
 CPP_FLAGS += -felide-constructors -fno-exceptions -fno-rtti
@@ -172,10 +172,6 @@ lib:
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(TEENSY_PATH)cores/teensy3/HardwareSerial3.cpp -o $(OUTPUT_PATH)/HardwareSerial3.cpp.o 
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(TEENSY_PATH)cores/teensy3/main.cpp -o $(OUTPUT_PATH)/main.cpp.o 
 	$(CPP_CROSS) -c $(CPP_FLAGS) $(TEENSY_PATH)cores/teensy3/IntervalTimer.cpp -o $(OUTPUT_PATH)/IntervalTimer.cpp.o 
-
-
-testbench:
-	g++ -static -g -o testbench src/tests/test-bench.cpp src/tests/StaticHub.cpp $(MANUVROS_SRCS) $(SENSOR_SRCS) $(I2C_DRIVERS) $(I2C_VIAM_SONUS_DRIVERS) -std=$(CPP_STANDARD) $(TARGET_WIDTH) -lstdc++ -lm -Isrc/ -DTEST_BENCH -D_GNU_SOURCE -O0
 
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:

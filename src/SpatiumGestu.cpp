@@ -3,6 +3,11 @@
 #include <ManuvrOS/Kernel.h>
 #include <StringBuilder/StringBuilder.h>
 
+#include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
+#include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
+#include <ManuvrOS/Drivers/ADP8866/ADP8866.h>
+#include <ManuvrOS/Drivers/INA219/INA219.h>
+
 #define HOST_BAUD_RATE  115200
 
 
@@ -66,17 +71,17 @@ void setup() {
 //  mcp73833 = new MCP73833(9, 10);
   
   // Setup the first i2c adapter and Subscribe it to Kernel.
-//  i2c     = new I2CAdapter(0);
+  I2CAdapter i2c(0);
 //  mgc3130 = new MGC3130(16, 17);
 
-//  ina219      = new INA219(0x4A);
-//  adp8866     = new ADP8866(7, 8, 0x27);
+  INA219 ina219(0x4A);
+  ADP8866 adp8866(7, 8, 0x27);
 
-//  event_manager.subscribe((EventReceiver*) i2c);
-//  event_manager.subscribe((EventReceiver*) adp8866);
+  __kernel.subscribe((EventReceiver*) &i2c);
+  __kernel.subscribe((EventReceiver*) &adp8866);
 
-//  ((I2CAdapter*) i2c)->addSlaveDevice(ina219);
-//  ((I2CAdapter*) i2c)->addSlaveDevice(adp8866);
+  i2c.addSlaveDevice(&ina219);
+  i2c.addSlaveDevice(&adp8866);
   
 //  mgc3130->init();
 
@@ -90,7 +95,7 @@ void setup() {
 
   // Create the scheduler thread. Let's see if this flies....
   xTaskCreate(schedulerTaskFxn, "Sched", 3000, (void*)kernel, 1, NULL );
-  xTaskCreate(loggerTask, "Logger", 40, (void*)kernel, 1, NULL);
+  xTaskCreate(loggerTask, "Logger", 100, (void*)kernel, 1, NULL);
   
   vTaskStartScheduler();
   for(;;);
@@ -137,9 +142,9 @@ void schedulerTaskFxn(void *pvParameters) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
     kernel->advanceScheduler();
-    vTaskDelay( 400 / portTICK_PERIOD_MS );
     kernel->printDebug(&output);
     Kernel::log(&output);
+    vTaskDelay( 1000 / portTICK_PERIOD_MS );
   }
 }
 
