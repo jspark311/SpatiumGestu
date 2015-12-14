@@ -3,7 +3,6 @@
 # Author: J. Ian Lindsay
 # Date:   2015.06.20
 #
-#
 ###########################################################################
 
 
@@ -46,7 +45,7 @@ INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I./ -Isrc/
-INCLUDES    += -I$(TEENSY_PATH)libraries/FreeRTOS_ARM/
+INCLUDES    += -Isrc/FreeRTOS_Arduino/FreeRTOS_ARM/
 
 LD_FILE     = src/mk20dx256.ld
 
@@ -69,10 +68,16 @@ CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 #CFLAGS += -MMD
 CFLAGS += -fstack-usage
-CFLAGS += -D__MANUVR_DEBUG
 
 CPP_FLAGS = -std=$(CPP_STANDARD) 
 CPP_FLAGS += -felide-constructors -fno-exceptions -fno-rtti
+
+
+# Options that build for certain threading models (if any).
+MANuVR_OPTIONS += -D__MANUVR_DEBUG
+MANuVR_OPTIONS += -D__MANUVR_FREERTOS
+
+CFLAGS += $(MANuVR_OPTIONS) 
 
 
 
