@@ -111,17 +111,17 @@ SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
 SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/MCP73833/*.cpp
 
-FREERTOS_C_SRC     = $(TEENSY_PATH)libraries/FreeRTOS_ARM/FreeRTOS_ARM.c
-FREERTOS_CPP_SRC  += $(TEENSY_PATH)libraries/FreeRTOS_ARM/assertMsg.cpp
-FREERTOS_CPP_SRC  += $(TEENSY_PATH)libraries/FreeRTOS_ARM/basic_io_arm.cpp
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/croutine.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/event_groups.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/heap_3.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/list.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/port.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/queue.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/tasks.c
-FREERTOS_C_SRC    += $(TEENSY_PATH)libraries/FreeRTOS_ARM/utility/timers.c
+FREERTOS_C_SRC     = src/FreeRTOS_Arduino/FreeRTOS_ARM/src/FreeRTOS_ARM.c
+FREERTOS_CPP_SRC  += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/assertMsg.cpp
+FREERTOS_CPP_SRC  += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/basic_io_arm.cpp
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/croutine.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/event_groups.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/heap_3.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/list.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/port.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/queue.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/tasks.c
+FREERTOS_C_SRC    += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/timers.c
 
 
 SRCS   = src/SpatiumGestu.cpp $(MANUVROS_SRCS) $(SPATIUM_GESTU_DRIVERS) $(FREERTOS_CPP_SRC)
@@ -187,7 +187,6 @@ $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 	$(OBJCOPY) -O $(FORMAT) -R .eeprom -R .fuse -R .lock -R .signature $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).hex
 
 
-
 program: $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 	$(TEENSY_LOADER_PATH) -mmcu=mk20dx128 -w -v $(OUTPUT_PATH)/$(FIRMWARE_NAME).hex
 
@@ -207,11 +206,3 @@ doc:
 
 stats:
 	find ./src -type f \( -name \*.cpp -o -name \*.h \) -exec wc -l {} +
-
-
-checkin: fullclean
-	git push
-
-checkout:
-	git pull
-

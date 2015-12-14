@@ -91,10 +91,10 @@ void setup() {
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 4000, NULL, 1, NULL );
+  xTaskCreate(mainTaskFxn, "Main", 3000, NULL, 1, NULL );
 
   // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Sched", 3000, (void*)kernel, 1, NULL );
+  xTaskCreate(schedulerTaskFxn, "Sched", 2000, (void*)kernel, 1, NULL );
   xTaskCreate(loggerTask, "Logger", 100, (void*)kernel, 1, NULL);
   
   vTaskStartScheduler();
