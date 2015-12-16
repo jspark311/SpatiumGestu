@@ -103,7 +103,7 @@ CPP_FLAGS += $(CFLAGS)
 # Source file definitions...
 ###########################################################################
 
-MANUVROS_SRCS = src/StringBuilder/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp 
+MANUVROS_SRCS =  src/DataStructures/*.cpp src/ManuvrOS/*.cpp src/ManuvrOS/XenoSession/*.cpp 
 MANUVROS_SRCS += src/ManuvrOS/ManuvrMsg/*.cpp src/ManuvrOS/Transports/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Platform/Platform.cpp src/ManuvrOS/Platform/PlatformTeensy3.cpp 
