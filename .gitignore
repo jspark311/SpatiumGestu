@@ -1,6 +1,5 @@
 .directory
 3DModels/spacium-gestu-casing.blend1
 src/ManuvrOS
-src/StringBuilder
 src/DataStructures
 src/FreeRTOS_Arduino
