@@ -18,7 +18,7 @@ Kernel* kernel = NULL;
 const int PIN_LED1        = 13;
 const int MANUVR_LOGO_LED = 4;
 
-#include "FreeRTOS_ARM.h"
+#include <FreeRTOS_ARM.h>
 
 void mainTaskFxn( void *pvParameters );
 void schedulerTaskFxn( void *pvParameters );

@@ -45,7 +45,7 @@ INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I./ -Isrc/
-INCLUDES    += -Isrc/FreeRTOS_Arduino/FreeRTOS_ARM/
+INCLUDES    += -Isrc/FreeRTOS_Arduino/FreeRTOS_ARM/src/
 
 LD_FILE     = src/mk20dx256.ld
 
