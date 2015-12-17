@@ -22,7 +22,10 @@ const int MANUVR_LOGO_LED = 4;
 
 void mainTaskFxn( void *pvParameters );
 void schedulerTaskFxn( void *pvParameters );
+void debugDumpTaskFxn( void *pvParameters );
+void serialIOTaskFxn( void *pvParameters );
 void loggerTask( void *pvParameters );
+
 
 #else
 const int MANUVR_LOGO_LED = 4;
@@ -56,6 +59,9 @@ void logo_fade() {
 }
 
 
+TaskHandle_t logger_pid = 0;
+TaskHandle_t kernel_pid = 0;
+
 
 void setup() {
   Serial.begin(HOST_BAUD_RATE);   // USB
@@ -65,6 +71,22 @@ void setup() {
   Kernel __kernel;  // Instance the kernel.
   kernel = &__kernel;
   
+
+  #if defined(__MK20DX256__) | defined(__MK20DX128__)
+  
+  // Create the main thread.
+  xTaskCreate(mainTaskFxn, "Main", 3000, NULL, 1, &kernel_pid);
+
+  // Create the scheduler thread. Let's see if this flies....
+  xTaskCreate(schedulerTaskFxn, "Sched", 3000, (void*)kernel, 1, NULL );
+  xTaskCreate(debugDumpTaskFxn, "Debug", 2000, (void*)kernel, 1, NULL );
+  xTaskCreate(serialIOTaskFxn, "Serial", 512,  (void*)kernel, 1, NULL );
+  
+  xTaskCreate(loggerTask, "Logger", 100, (void*)kernel, 2, &logger_pid);
+  __kernel.provideKernelPID(kernel_pid);
+  __kernel.provideLoggerPID(logger_pid);
+
+
   kernel->createSchedule(40, -1, false, logo_fade);
   kernel->createSchedule(25, -1, false, blink_led);
 
@@ -85,19 +107,9 @@ void setup() {
   
 //  mgc3130->init();
 
-
   __kernel.bootstrap();
-  
-  #if defined(__MK20DX256__) | defined(__MK20DX128__)
-  
-  // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 3000, NULL, 1, NULL );
-
-  // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Sched", 2000, (void*)kernel, 1, NULL );
-  xTaskCreate(loggerTask, "Logger", 100, (void*)kernel, 1, NULL);
-  
   vTaskStartScheduler();
+ 
   for(;;);
   
   #elif defined(_BOARD_FUBARINO_MINI_)
@@ -112,14 +124,23 @@ void setup() {
 #if defined(__MK20DX256__) | defined(__MK20DX128__)
 
 void mainTaskFxn(void *pvParameters) {
-  unsigned char* ser_buffer = (unsigned char*) alloca(255);
-  int bytes_read = 0;
+  int k_return = 0;
   
   /* As per most tasks, this task is implemented in an infinite loop. */
   for(;;) {
-    kernel->procIdleFlags();
-    kernel->serviceScheduledEvents();
-    
+    k_return = kernel->procIdleFlags();
+
+    if (0 == k_return) {
+      vTaskSuspend(NULL);   // Nothing more to do.
+    }
+  }
+}
+
+
+void serialIOTaskFxn(void *pvParameters) {
+  unsigned char* ser_buffer = (unsigned char*) alloca(255);
+  int bytes_read = 0;
+  for(;;) {
     if (Serial.available()) {
       // Zero the buffer.
       bytes_read = 0;
@@ -132,19 +153,30 @@ void mainTaskFxn(void *pvParameters) {
       
       kernel->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
     }
+    else {
+      vTaskDelay(11 / portTICK_PERIOD_MS);
+    }
   }
 }
 
 
 void schedulerTaskFxn(void *pvParameters) {
-  StringBuilder output;
+  int s_return = 0;
   for(;;) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
     kernel->advanceScheduler();
+    s_return = kernel->serviceScheduledEvents();
+    vTaskDelay( 10 / portTICK_PERIOD_MS );
+  }
+}
+
+void debugDumpTaskFxn(void *pvParameters) {
+  StringBuilder output;
+  for(;;) {
     kernel->printDebug(&output);
     Kernel::log(&output);
-    vTaskDelay( 1000 / portTICK_PERIOD_MS );
+    vTaskDelay( 5000 / portTICK_PERIOD_MS );
   }
 }
 
@@ -152,18 +184,18 @@ void schedulerTaskFxn(void *pvParameters) {
 void loggerTask(void *pvParameters) {
   for(;;) {
     if (Kernel::log_buffer.count()) {
+      taskENTER_CRITICAL();
       if (!kernel->getVerbosity()) {
         Kernel::log_buffer.clear();
       }
       else {
-        //printf("%s", Kernel::log_buffer.position(0));
         Serial.print((char*) Kernel::log_buffer.position(0));
         Kernel::log_buffer.drop_position(0);
       }
+      taskEXIT_CRITICAL();
     }
     else {
-      // Nothing more to do.
-      taskYIELD();
+      vTaskSuspend(NULL);   // Nothing more to do.
     }
   }
 }

@@ -184,7 +184,7 @@ $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 
 	$(CPP_CROSS) -c $(SRCS) $(CPP_FLAGS)
 	$(C_CROSS) -c $(CFLAGS) $(FREERTOS_C_SRC)
-	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o -L$(OUTPUT_PATH) $(LIBS)
+	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o $(OUTPUT_PATH)/*.o -L$(OUTPUT_PATH) $(LIBS)
 
 	@echo
 	@echo $(MSG_FLASH) $@
@@ -203,7 +203,7 @@ fullclean:
 
 clean:
 	rm -f *.d *.o *.su *~
-	rm -rf $(OUTPUT_PATH)
+
 
 doc:
 	mkdir -p doc/doxygen/
