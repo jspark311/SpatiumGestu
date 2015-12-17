@@ -65,24 +65,26 @@ TaskHandle_t kernel_pid = 0;
 
 void setup() {
   Serial.begin(HOST_BAUD_RATE);   // USB
-  pinMode(PIN_LED1,         OUTPUT);
-  pinMode(MANUVR_LOGO_LED,  OUTPUT);
-  
+
   Kernel __kernel;  // Instance the kernel.
   kernel = &__kernel;
-  
+
+  pinMode(PIN_LED1,         OUTPUT);
+  pinMode(MANUVR_LOGO_LED,  OUTPUT);
+
+
 
   #if defined(__MK20DX256__) | defined(__MK20DX128__)
   
   // Create the main thread.
-  xTaskCreate(mainTaskFxn, "Main", 3000, NULL, 1, &kernel_pid);
+  xTaskCreate(mainTaskFxn, "Main", 2000, NULL, 2, &kernel_pid);
 
   // Create the scheduler thread. Let's see if this flies....
-  xTaskCreate(schedulerTaskFxn, "Sched", 3000, (void*)kernel, 1, NULL );
+  xTaskCreate(schedulerTaskFxn, "Sched", 2000, (void*)kernel, 1, NULL );
   xTaskCreate(debugDumpTaskFxn, "Debug", 2000, (void*)kernel, 1, NULL );
   xTaskCreate(serialIOTaskFxn, "Serial", 512,  (void*)kernel, 1, NULL );
   
-  xTaskCreate(loggerTask, "Logger", 100, (void*)kernel, 2, &logger_pid);
+  xTaskCreate(loggerTask, "Logger", 512, (void*)kernel, 3, &logger_pid);
   __kernel.provideKernelPID(kernel_pid);
   __kernel.provideLoggerPID(logger_pid);
 
@@ -96,13 +98,13 @@ void setup() {
   I2CAdapter i2c(0);
 //  mgc3130 = new MGC3130(16, 17);
 
-  INA219 ina219(0x4A);
+  //INA219 ina219(0x4A);
   ADP8866 adp8866(7, 8, 0x27);
 
   __kernel.subscribe((EventReceiver*) &i2c);
   __kernel.subscribe((EventReceiver*) &adp8866);
 
-  i2c.addSlaveDevice(&ina219);
+  //i2c.addSlaveDevice(&ina219);
   i2c.addSlaveDevice(&adp8866);
   
 //  mgc3130->init();
@@ -128,7 +130,9 @@ void mainTaskFxn(void *pvParameters) {
   
   /* As per most tasks, this task is implemented in an infinite loop. */
   for(;;) {
+    taskENTER_CRITICAL();
     k_return = kernel->procIdleFlags();
+    taskEXIT_CRITICAL();
 
     if (0 == k_return) {
       vTaskSuspend(NULL);   // Nothing more to do.
@@ -166,7 +170,9 @@ void schedulerTaskFxn(void *pvParameters) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
     kernel->advanceScheduler();
+    taskENTER_CRITICAL();
     s_return = kernel->serviceScheduledEvents();
+    taskEXIT_CRITICAL();
     vTaskDelay( 10 / portTICK_PERIOD_MS );
   }
 }
@@ -176,7 +182,7 @@ void debugDumpTaskFxn(void *pvParameters) {
   for(;;) {
     kernel->printDebug(&output);
     Kernel::log(&output);
-    vTaskDelay( 5000 / portTICK_PERIOD_MS );
+    vTaskDelay( 2000 / portTICK_PERIOD_MS );
   }
 }
 
@@ -184,15 +190,17 @@ void debugDumpTaskFxn(void *pvParameters) {
 void loggerTask(void *pvParameters) {
   for(;;) {
     if (Kernel::log_buffer.count()) {
-      taskENTER_CRITICAL();
       if (!kernel->getVerbosity()) {
+        taskENTER_CRITICAL();
         Kernel::log_buffer.clear();
+        taskEXIT_CRITICAL();
       }
       else {
         Serial.print((char*) Kernel::log_buffer.position(0));
+        taskENTER_CRITICAL();
         Kernel::log_buffer.drop_position(0);
+        taskEXIT_CRITICAL();
       }
-      taskEXIT_CRITICAL();
     }
     else {
       vTaskSuspend(NULL);   // Nothing more to do.
