@@ -67,7 +67,7 @@ CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
 
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 #CFLAGS += -MMD
-CFLAGS += -fstack-usage
+#CFLAGS += -fstack-usage
 
 CPP_FLAGS = -std=$(CPP_STANDARD) 
 CPP_FLAGS += -felide-constructors -fno-exceptions -fno-rtti
@@ -182,9 +182,9 @@ lib:
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 	$(shell mkdir $(OUTPUT_PATH))
 
-	$(CPP_CROSS) -c $(CPP_FLAGS) $(SRCS)
+	$(CPP_CROSS) -c $(SRCS) $(CPP_FLAGS)
 	$(C_CROSS) -c $(CFLAGS) $(FREERTOS_C_SRC)
-	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/*.o *.o -L$(OUTPUT_PATH) $(LIBS)
+	$(CPP_CROSS) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o -L$(OUTPUT_PATH) $(LIBS)
 
 	@echo
 	@echo $(MSG_FLASH) $@
