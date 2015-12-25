@@ -51,7 +51,8 @@ This is where definition of (application or device)-specific parameters ought to
 /*
 * Kernel options.
 */
-#define EVENT_MANAGER_PREALLOC_COUNT      8    // How large a preallocation buffer should we keep?
+#define EVENT_MANAGER_PREALLOC_COUNT      8     // How large a preallocation buffer should we keep?
+#define MANUVR_PLATFORM_TIMER_PERIOD_MS   10    // What is the granularity of our scheduler?
 
 
 /****************************************************************************************************

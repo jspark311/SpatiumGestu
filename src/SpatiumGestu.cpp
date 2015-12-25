@@ -155,7 +155,7 @@ void serialIOTaskFxn(void *pvParameters) {
         *(ser_buffer+bytes_read++) = c;
       }
       
-      kernel->feedUSBBuffer(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
+      kernel->accumulateConsoleInput(ser_buffer, bytes_read, (c == '\r' || c == '\n'));
     }
     else {
       vTaskDelay(11 / portTICK_PERIOD_MS);
@@ -165,13 +165,11 @@ void serialIOTaskFxn(void *pvParameters) {
 
 
 void schedulerTaskFxn(void *pvParameters) {
-  int s_return = 0;
   for(;;) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
     kernel->advanceScheduler();
     taskENTER_CRITICAL();
-    s_return = kernel->serviceScheduledEvents();
     taskEXIT_CRITICAL();
     vTaskDelay( 10 / portTICK_PERIOD_MS );
   }
