@@ -110,13 +110,13 @@ MANUVROS_SRCS += src/ManuvrOS/ManuvrMsg/*.cpp
 #MANUVROS_SRCS += src/ManuvrOS/Drivers/SensorWrapper/*.cpp
 MANUVROS_SRCS += src/ManuvrOS/Platform/Platform.cpp src/ManuvrOS/Platform/PlatformTeensy3.cpp 
 
-#I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
-#I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
+I2C_DRIVERS   = src/ManuvrOS/Drivers/i2c-adapter/*.cpp
+I2C_DRIVERS  += src/ManuvrOS/Drivers/DeviceWithRegisters/*.cpp
 
-#SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
-#SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
-#SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
-#SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/MCP73833/*.cpp
+SPATIUM_GESTU_DRIVERS  =  $(I2C_DRIVERS) src/ManuvrOS/Drivers/MGC3130/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/ADP8866/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/INA219/*.cpp
+SPATIUM_GESTU_DRIVERS +=  src/ManuvrOS/Drivers/MCP73833/*.cpp
 
 FREERTOS_C_SRC     = src/FreeRTOS_Arduino/FreeRTOS_ARM/src/FreeRTOS_ARM.c
 FREERTOS_CPP_SRC  += src/FreeRTOS_Arduino/FreeRTOS_ARM/src/assertMsg.cpp

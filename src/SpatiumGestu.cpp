@@ -7,6 +7,12 @@
 #include <ManuvrOS/Kernel.h>
 #include <DataStructures/StringBuilder.h>
 
+#include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
+#include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
+#include <ManuvrOS/Drivers/ADP8866/ADP8866.h>
+#include <ManuvrOS/Drivers/INA219/INA219.h>
+
+void vApplicationTickHook(void);
 
 // The LED is attached to pin 13 on Arduino.
 const uint8_t PIN_LED1 = 13;
@@ -18,26 +24,20 @@ void blink_led() {  digitalWrite(PIN_LED1, !digitalRead(PIN_LED1));  }
 
 
 
-// Declare a semaphore handle.
-SemaphoreHandle_t sem;
-//------------------------------------------------------------------------------
-/*
- * Thread 1, turn the LED off when signalled by thread 2.
- */
-// Declare the thread function for thread 1.
-static void Thread1(void* arg) {
-  while (1) {
-    // Wait for signal from thread 2.
-    xSemaphoreTake(sem, portMAX_DELAY);
-    vTaskDelay( 10 / portTICK_PERIOD_MS );
-  }
+void vApplicationTickHook(void) {
+  // TODO: This sucks. There must be a better way of having the kernel's
+  //   sense of time not being subservient to FreeRTOS's...
+  blink_led();
+  kernel->advanceScheduler();
 }
+
 
 
 static void serialIOTaskFxn(void *pvParameters) {
   unsigned char* ser_buffer = (unsigned char*) alloca(255);
   int bytes_read = 0;
   char tmp_char  = 0;
+  bool mark_end  = false;
   for(;;) {
     if (Serial.available()) {
       blink_led();
@@ -45,9 +45,11 @@ static void serialIOTaskFxn(void *pvParameters) {
       while (Serial.available()) {
         tmp_char = Serial.read();
         *(ser_buffer+bytes_read++) = tmp_char;
+        
         if (tmp_char == '\r' || tmp_char == '\n') {
+          mark_end  = true;
           *(ser_buffer+bytes_read) = 0;
-          kernel->accumulateConsoleInput(ser_buffer, bytes_read, true);
+          kernel->accumulateConsoleInput(ser_buffer, bytes_read, mark_end);
           bytes_read = 0;
           for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
         }
@@ -55,17 +57,8 @@ static void serialIOTaskFxn(void *pvParameters) {
     }
     else {
       vTaskDelay(11 / portTICK_PERIOD_MS);
+      //vTaskSuspend(NULL);   // Nothing more to do.
     }
-  }
-}
-
-
-static void schedulerTaskFxn(void *pvParameters) {
-  for(;;) {
-    // TODO: This sucks. There must be a better way of having the kernel's
-    //   sense of time not being subservient to FreeRTOS's...
-    kernel->advanceScheduler(MANUVR_PLATFORM_TIMER_PERIOD_MS);
-    vTaskDelay(MANUVR_PLATFORM_TIMER_PERIOD_MS / portTICK_PERIOD_MS);
   }
 }
 
@@ -83,66 +76,66 @@ static void loggerTask(void *pvParameters) {
     }
     else {
       vTaskSuspend(NULL);   // Nothing more to do.
-      //vTaskDelay( 10 / portTICK_PERIOD_MS );
     }
   }
 }
 
 
-//------------------------------------------------------------------------------
-/*
- * Thread 2, turn the LED on and signal thread 1 to turn the LED off.
- */
-// Declare the thread function for thread 2.
+
 static void mainThread(void* arg) {
   pinMode(PIN_LED1, OUTPUT);
+  kernel->bootstrap();
 
   while (1) {
-    // Sleep for 200 milliseconds.
-    vTaskDelay((20L * configTICK_RATE_HZ) / 1000L);
     kernel->procIdleFlags();
-    kernel->advanceScheduler();
-
-    // Signal thread 1 to turn LED off.
-    xSemaphoreGive(sem);
+    taskYIELD();
   }
 }
 
 
 
 void setup() {
-  portBASE_TYPE s1, s2, s3, s4, s5;
+  portBASE_TYPE s1, s2, s3;
   
   TaskHandle_t logger_pid = 0;
   TaskHandle_t kernel_pid = 0;
   
   Serial.begin(115200);
-  kernel = new Kernel();
+  kernel = Kernel::getInstance();
   
-  // initialize semaphore
-  sem = xSemaphoreCreateCounting(1, 0);
-
-  // create task at priority two
-  s1 = xTaskCreate(Thread1, NULL, configMINIMAL_STACK_SIZE, NULL, 2, NULL);
-
   // create task at priority one
-  s2 = xTaskCreate(mainThread, "Main", 3076, NULL, 1, &kernel_pid);
-  s3 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
-  s4 = xTaskCreate(serialIOTaskFxn,  "SerIO", 1024, NULL, 1, NULL);
-  s5 = xTaskCreate(schedulerTaskFxn, "Sched", 128, NULL, 1, NULL);
+  s1 = xTaskCreate(mainThread, "Main", 4096, NULL, 1, &kernel_pid);
+  s2 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
+  s3 = xTaskCreate(serialIOTaskFxn,  "SerIO", 1024, NULL, 1, NULL);
 
   // check for creation errors
-  if (sem== NULL || s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
+  if (s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
     Serial.println(F("Creation problem"));
     while(1);
   }
   
+  I2CAdapter i2c(0);
+
+  //mgc3130 = new MGC3130(16, 17);
+  //INA219 ina219(0x4A);
+  ADP8866 adp8866(7, 8, 0x27);
+  
+  kernel->subscribe((EventReceiver*) &i2c);
+  kernel->subscribe((EventReceiver*) &adp8866);
+  
+  //i2c.addSlaveDevice(&ina219);
+  i2c.addSlaveDevice(&adp8866);
+
+  //mgc3130->init();
+  
+
   //kernel->createSchedule(100, -1, false, blink_led);
 
   // start scheduler
   kernel->provideKernelPID(kernel_pid);
   kernel->provideLoggerPID(logger_pid);
-  kernel->bootstrap();
+
+  vTaskStartScheduler();
 
   while(1);
 }
