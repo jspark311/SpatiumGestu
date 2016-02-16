@@ -34,7 +34,7 @@ static void Thread1(void* arg) {
 }
 
 
-void serialIOTaskFxn(void *pvParameters) {
+static void serialIOTaskFxn(void *pvParameters) {
   unsigned char* ser_buffer = (unsigned char*) alloca(255);
   int bytes_read = 0;
   char tmp_char  = 0;
@@ -64,13 +64,13 @@ static void schedulerTaskFxn(void *pvParameters) {
   for(;;) {
     // TODO: This sucks. There must be a better way of having the kernel's
     //   sense of time not being subservient to FreeRTOS's...
-    kernel->advanceScheduler();
-    vTaskDelay( 10 / portTICK_PERIOD_MS );
+    kernel->advanceScheduler(MANUVR_PLATFORM_TIMER_PERIOD_MS);
+    vTaskDelay(MANUVR_PLATFORM_TIMER_PERIOD_MS / portTICK_PERIOD_MS);
   }
 }
 
 
-void loggerTask(void *pvParameters) {
+static void loggerTask(void *pvParameters) {
   for(;;) {
     if (Kernel::log_buffer.count()) {
       if (!kernel->getVerbosity()) {
@@ -82,8 +82,8 @@ void loggerTask(void *pvParameters) {
       }
     }
     else {
-      //vTaskSuspend(NULL);   // Nothing more to do.
-      vTaskDelay( 10 / portTICK_PERIOD_MS );
+      vTaskSuspend(NULL);   // Nothing more to do.
+      //vTaskDelay( 10 / portTICK_PERIOD_MS );
     }
   }
 }
@@ -94,16 +94,14 @@ void loggerTask(void *pvParameters) {
  * Thread 2, turn the LED on and signal thread 1 to turn the LED off.
  */
 // Declare the thread function for thread 2.
-static void Thread2(void* arg) {
-
+static void mainThread(void* arg) {
   pinMode(PIN_LED1, OUTPUT);
 
   while (1) {
     // Sleep for 200 milliseconds.
-    vTaskDelay((200L * configTICK_RATE_HZ) / 1000L);
+    vTaskDelay((20L * configTICK_RATE_HZ) / 1000L);
     kernel->procIdleFlags();
     kernel->advanceScheduler();
-    Serial.println(F("Hold"));
 
     // Signal thread 1 to turn LED off.
     xSemaphoreGive(sem);
@@ -128,11 +126,10 @@ void setup() {
   s1 = xTaskCreate(Thread1, NULL, configMINIMAL_STACK_SIZE, NULL, 2, NULL);
 
   // create task at priority one
-  s2 = xTaskCreate(Thread2, NULL, 3076, NULL, 1, &kernel_pid);
-  
-  s3 = xTaskCreate(loggerTask, NULL, 1024, NULL, 1, &logger_pid);
-  s4 = xTaskCreate(serialIOTaskFxn, NULL, 1024, NULL, 1, &logger_pid);
-  s5 = xTaskCreate(schedulerTaskFxn, NULL, 128, NULL, 1, NULL);
+  s2 = xTaskCreate(mainThread, "Main", 3076, NULL, 1, &kernel_pid);
+  s3 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
+  s4 = xTaskCreate(serialIOTaskFxn,  "SerIO", 1024, NULL, 1, NULL);
+  s5 = xTaskCreate(schedulerTaskFxn, "Sched", 128, NULL, 1, NULL);
 
   // check for creation errors
   if (sem== NULL || s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
@@ -143,12 +140,13 @@ void setup() {
   //kernel->createSchedule(100, -1, false, blink_led);
 
   // start scheduler
-  kernel->bootstrap();
   kernel->provideKernelPID(kernel_pid);
   kernel->provideLoggerPID(logger_pid);
+  kernel->bootstrap();
 
   while(1);
 }
 
 void loop() {
 }
+
