@@ -17,6 +17,9 @@ void vApplicationTickHook(void);
 // The LED is attached to pin 13 on Arduino.
 const uint8_t PIN_LED1 = 13;
 
+TaskHandle_t logger_pid = 0;
+TaskHandle_t kernel_pid = 0;
+  
 
 Kernel* kernel = NULL;
 
@@ -84,36 +87,7 @@ static void loggerTask(void *pvParameters) {
 
 static void mainThread(void* arg) {
   pinMode(PIN_LED1, OUTPUT);
-  kernel->bootstrap();
 
-  while (1) {
-    kernel->procIdleFlags();
-    taskYIELD();
-  }
-}
-
-
-
-void setup() {
-  portBASE_TYPE s1, s2, s3;
-  
-  TaskHandle_t logger_pid = 0;
-  TaskHandle_t kernel_pid = 0;
-  
-  Serial.begin(115200);
-  kernel = Kernel::getInstance();
-  
-  // create task at priority one
-  s1 = xTaskCreate(mainThread, "Main", 4096, NULL, 1, &kernel_pid);
-  s2 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
-  s3 = xTaskCreate(serialIOTaskFxn,  "SerIO", 1024, NULL, 1, NULL);
-
-  // check for creation errors
-  if (s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
-    Serial.println(F("Creation problem"));
-    while(1);
-  }
-  
   I2CAdapter i2c(0);
 
   //mgc3130 = new MGC3130(16, 17);
@@ -131,10 +105,36 @@ void setup() {
 
   //kernel->createSchedule(100, -1, false, blink_led);
 
-  // start scheduler
   kernel->provideKernelPID(kernel_pid);
   kernel->provideLoggerPID(logger_pid);
+  kernel->bootstrap();
 
+  while (1) {
+    kernel->procIdleFlags();
+    taskYIELD();
+  }
+}
+
+
+
+void setup() {
+  portBASE_TYPE s1, s2, s3;
+  
+  Serial.begin(115200);
+  kernel = Kernel::getInstance();
+  
+  // create task at priority one
+  s1 = xTaskCreate(mainThread, "Main", 4096, NULL, 1, &kernel_pid);
+  s2 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
+  s3 = xTaskCreate(serialIOTaskFxn,  "SerIO", 1024, NULL, 1, NULL);
+
+  // check for creation errors
+  if (s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
+    Serial.println(F("Creation problem"));
+    while(1);
+  }
+  
+  // start scheduler
   vTaskStartScheduler();
 
   while(1);
