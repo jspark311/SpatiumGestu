@@ -1,31 +1,30 @@
-/*
- * Example to demonstrate thread definition, semaphores, and thread sleep.
- */
 #include <FreeRTOS_ARM.h>
 #include "FirmwareDefs.h"
 #include <ManuvrOS/Platform/Platform.h>
 #include <ManuvrOS/Kernel.h>
 #include <DataStructures/StringBuilder.h>
 
-#include <ManuvrOS/Drivers/MCP73833/MCP73833.h>
 #include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
 #include <ManuvrOS/Drivers/ADP8866/ADP8866.h>
-#include <ManuvrOS/Drivers/INA219/INA219.h>
 
-void vApplicationTickHook(void);
+#define HOST_BAUD_RATE  115200
+
 
 // The LED is attached to pin 13 on Arduino.
-const uint8_t PIN_LED1 = 13;
+const uint8_t PIN_LED1  = 13;
 
 TaskHandle_t logger_pid = 0;
 TaskHandle_t kernel_pid = 0;
-  
+
 
 Kernel* kernel = NULL;
 
-void blink_led() {  digitalWrite(PIN_LED1, !digitalRead(PIN_LED1));  }
+
+void blink_led() {  setPin(PIN_LED1, !readPin(PIN_LED1));  }
 
 
+#if defined(__MK20DX256__) || defined(__MK20DX128__)
+void vApplicationTickHook(void);
 
 void vApplicationTickHook(void) {
   // TODO: This sucks. There must be a better way of having the kernel's
@@ -91,13 +90,8 @@ static void mainThread(void* arg) {
   I2CAdapter i2c(0);
 
   //mgc3130 = new MGC3130(16, 17);
-  //INA219 ina219(0x4A);
   ADP8866 adp8866(7, 8, 0x27);
-  
-  kernel->subscribe((EventReceiver*) &i2c);
   kernel->subscribe((EventReceiver*) &adp8866);
-  
-  //i2c.addSlaveDevice(&ina219);
   i2c.addSlaveDevice(&adp8866);
 
   //mgc3130->init();
@@ -120,7 +114,7 @@ static void mainThread(void* arg) {
 void setup() {
   portBASE_TYPE s1, s2, s3;
   
-  Serial.begin(115200);
+  Serial.begin(HOST_BAUD_RATE);
   kernel = Kernel::getInstance();
   
   // create task at priority one
@@ -143,3 +137,61 @@ void setup() {
 void loop() {
 }
 
+#elif defined(_BOARD_FUBARINO_MINI_)
+  //
+  // Fubarino Mini
+  //
+  
+  uint32_t timerCallbackScheduler(uint32_t currentTime) {  
+    if (kernel) kernel->advanceScheduler(); 
+    return (currentTime + (CORE_TICK_RATE * 1));
+  }
+
+  
+  void setup() {
+    pinMode(PIN_LED1, OUTPUT);
+    pinMode(MANUVR_LOGO_LED,  OUTPUT);
+    Serial.begin(HOST_BAUD_RATE);   // USB
+    
+    kernel = Kernel::getInstance();
+    
+    //mgc3130 = new MGC3130(16, 17);
+    ADP8866 adp8866(7, 8, 0x27);
+    kernel->subscribe((EventReceiver*) &adp8866);
+    i2c.addSlaveDevice(&adp8866);
+  
+    //mgc3130->init();
+    
+    //kernel->createSchedule(100, -1, false, blink_led);
+    
+    attachCoreTimerService(timerCallbackScheduler);
+    globalIRQEnable();
+  }
+  
+
+  void loop() {
+    unsigned char* ser_buffer = (unsigned char*) alloca(255);
+    int bytes_read = 0;
+  
+    while (1) {   // Service this loop for-ev-ar
+      while (Serial.available() == 0) {
+        kernel->procIdleFlags();
+      }
+  
+      blink_led();
+      // Zero the buffer.
+      while (Serial.available()) {
+        tmp_char = Serial.read();
+        *(ser_buffer+bytes_read++) = tmp_char;
+        
+        if (tmp_char == '\r' || tmp_char == '\n') {
+          mark_end  = true;
+          *(ser_buffer+bytes_read) = 0;
+          kernel->accumulateConsoleInput(ser_buffer, bytes_read, mark_end);
+          bytes_read = 0;
+          for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
+        }
+      }
+    }
+  }
+#endif
