@@ -9,21 +9,18 @@
 
 #define HOST_BAUD_RATE  115200
 
+void blink_led();
 
-// The LED is attached to pin 13 on Arduino.
-const uint8_t PIN_LED1  = 13;
-
-TaskHandle_t logger_pid = 0;
-TaskHandle_t kernel_pid = 0;
-
-
-Kernel* kernel = NULL;
-
-
-void blink_led() {  setPin(PIN_LED1, !readPin(PIN_LED1));  }
+Kernel* kernel           = NULL;
 
 
 #if defined(__MK20DX256__) || defined(__MK20DX128__)
+TaskHandle_t logger_pid = 0;
+TaskHandle_t kernel_pid = 0;
+
+// The LED is attached to pin 13 on the teensy3.
+const uint8_t PIN_LED1        = 13;
+
 void vApplicationTickHook(void);
 
 void vApplicationTickHook(void) {
@@ -138,10 +135,9 @@ void loop() {
 }
 
 #elif defined(_BOARD_FUBARINO_MINI_)
-  //
-  // Fubarino Mini
-  //
-  
+  // The LED is attached to pin 13 on the Fubarino Mini.
+  const uint8_t PIN_LED1        = 13;
+
   uint32_t timerCallbackScheduler(uint32_t currentTime) {  
     if (kernel) kernel->advanceScheduler(); 
     return (currentTime + (CORE_TICK_RATE * 1));
@@ -150,7 +146,6 @@ void loop() {
   
   void setup() {
     pinMode(PIN_LED1, OUTPUT);
-    pinMode(MANUVR_LOGO_LED,  OUTPUT);
     Serial.begin(HOST_BAUD_RATE);   // USB
     
     kernel = Kernel::getInstance();
@@ -195,3 +190,7 @@ void loop() {
     }
   }
 #endif
+
+
+void blink_led() {  setPin(PIN_LED1, !readPin(PIN_LED1));  }
+
