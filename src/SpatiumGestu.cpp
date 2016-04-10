@@ -1,11 +1,11 @@
 #include <FreeRTOS_ARM.h>
 #include "FirmwareDefs.h"
-#include <ManuvrOS/Platform/Platform.h>
-#include <ManuvrOS/Kernel.h>
+#include <Platform/Platform.h>
+#include <Kernel.h>
 #include <DataStructures/StringBuilder.h>
 
-#include <ManuvrOS/Drivers/MGC3130/MGC3130.h>
-#include <ManuvrOS/Drivers/ADP8866/ADP8866.h>
+#include <Drivers/MGC3130/MGC3130.h>
+#include <Drivers/ADP8866/ADP8866.h>
 
 #define HOST_BAUD_RATE  115200
 
