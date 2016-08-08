@@ -14,7 +14,7 @@
 
 void blink_led();
 
-Kernel* kernel           = NULL;
+Kernel* kernel           = nullptr;
 
 
 #if defined(__MK20DX256__) || defined(__MK20DX128__)
@@ -33,8 +33,6 @@ void vApplicationTickHook() {
   kernel->advanceScheduler();
 }
 
-ManuvrXport* hack = nullptr;
-
 static void* mainThread(void* arg) {
   //kernel->createSchedule(100, -1, false, blink_led);
   //kernel->provideKernelPID(kernel_pid);
@@ -45,18 +43,11 @@ static void* mainThread(void* arg) {
     kernel->procIdleFlags();
     //taskYIELD();
   }
-}
-
-static void* xportThread(void* arg) {
-  while (1) {
-    hack->read_port();
-    taskYIELD();
-  }
+  return nullptr;
 }
 
 
 void setup() {
-  portBASE_TYPE s1;
   pinMode(PIN_LED1, OUTPUT);
 
   kernel = Kernel::getInstance();
@@ -66,8 +57,6 @@ void setup() {
   ManuvrConsole _console((BufferPipe*) &_console_xport);
   kernel->subscribe((EventReceiver*) &_console_xport);
   kernel->subscribe((EventReceiver*) &_console);
-
-  hack = &_console_xport;
 
   I2CAdapter i2c(0);
   kernel->subscribe((EventReceiver*) &i2c);
@@ -81,14 +70,13 @@ void setup() {
   i2c.addSlaveDevice((I2CDevice*) &adp8866);
 
   // create task at priority one
-  createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
-  //createThread(&logger_pid, nullptr, xportThread, (void*) &_console_xport);
+  int s1 = createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
 
   // check for creation errors
-  //if (s1 != pdPASS) {
-  //  Serial.println(F("Creation problem"));
-  //  while(1);
-  //}
+  if (0 != s1) {
+    Serial.println(F("Creation problem"));
+    while(1);
+  }
 
   // start scheduler
   vTaskStartScheduler();
@@ -96,8 +84,11 @@ void setup() {
   while(1);
 }
 
-void loop() {
-}
+void loop() {}
+
+
+
+
 
 #elif defined(_BOARD_FUBARINO_MINI_)
   // The LED is attached to pin 13 on the Fubarino Mini.
