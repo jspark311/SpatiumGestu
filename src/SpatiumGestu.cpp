@@ -18,11 +18,13 @@ Kernel* kernel           = NULL;
 
 
 #if defined(__MK20DX256__) || defined(__MK20DX128__)
-TaskHandle_t logger_pid = 0;
-TaskHandle_t kernel_pid = 0;
+
+unsigned long logger_pid = 0;
+unsigned long kernel_pid = 0;
 
 // The LED is attached to pin 13 on the teensy3.
 const uint8_t PIN_LED1        = 13;
+
 
 void vApplicationTickHook() {
   // TODO: This sucks. There must be a better way of having the kernel's
@@ -31,53 +33,62 @@ void vApplicationTickHook() {
   kernel->advanceScheduler();
 }
 
+ManuvrXport* hack = nullptr;
 
-static void mainThread(void* arg) {
-  pinMode(PIN_LED1, OUTPUT);
-  ManuvrSerial  _console_xport("U", HOST_BAUD_RATE);  // Indicate USB.
-  ManuvrConsole _console((BufferPipe*) &_console_xport);
-  kernel->subscribe((EventReceiver*) &_console);
-  kernel->subscribe((EventReceiver*) &_console_xport);
-
-  I2CAdapter i2c(0);
-
-  //mgc3130 = new MGC3130(16, 17);
-  ADP8866 adp8866(7, 8, 0x27);
-  kernel->subscribe((EventReceiver*) &adp8866);
-  i2c.addSlaveDevice(&adp8866);
-
-  //mgc3130->init();
-
+static void* mainThread(void* arg) {
   //kernel->createSchedule(100, -1, false, blink_led);
-  kernel->provideKernelPID(kernel_pid);
+  //kernel->provideKernelPID(kernel_pid);
   //kernel->provideLoggerPID(logger_pid);
-
   kernel->bootstrap();
 
   while (1) {
     kernel->procIdleFlags();
+    //taskYIELD();
+  }
+}
+
+static void* xportThread(void* arg) {
+  while (1) {
+    hack->read_port();
     taskYIELD();
   }
 }
 
 
-
 void setup() {
-  portBASE_TYPE s1, s2, s3;
+  portBASE_TYPE s1;
+  pinMode(PIN_LED1, OUTPUT);
 
-  Serial.begin(HOST_BAUD_RATE);
   kernel = Kernel::getInstance();
+  kernel->profiler(true);
+
+  ManuvrSerial  _console_xport("U", HOST_BAUD_RATE);  // Indicate USB.
+  ManuvrConsole _console((BufferPipe*) &_console_xport);
+  kernel->subscribe((EventReceiver*) &_console_xport);
+  kernel->subscribe((EventReceiver*) &_console);
+
+  hack = &_console_xport;
+
+  I2CAdapter i2c(0);
+  kernel->subscribe((EventReceiver*) &i2c);
+
+  //MGC3130 mgc3130(16, 17);
+  //mgc3130->init();
+  //kernel->subscribe((EventReceiver*) &mgc3130);
+
+  ADP8866 adp8866(7, 8, 0x27);
+  kernel->subscribe((EventReceiver*) &adp8866);
+  i2c.addSlaveDevice((I2CDevice*) &adp8866);
 
   // create task at priority one
-  s1 = xTaskCreate(mainThread, "Main", 4096, NULL, 1, &kernel_pid);
-  //s2 = xTaskCreate(loggerTask, "Log", 1024, NULL, 1, &logger_pid);
+  createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
+  //createThread(&logger_pid, nullptr, xportThread, (void*) &_console_xport);
 
   // check for creation errors
-  //if (s1 != pdPASS || s2 != pdPASS || s3 != pdPASS ) {
-  if (s1 != pdPASS) {
-    Serial.println(F("Creation problem"));
-    while(1);
-  }
+  //if (s1 != pdPASS) {
+  //  Serial.println(F("Creation problem"));
+  //  while(1);
+  //}
 
   // start scheduler
   vTaskStartScheduler();
@@ -107,7 +118,7 @@ void loop() {
     //mgc3130 = new MGC3130(16, 17);
     ADP8866 adp8866(7, 8, 0x27);
     kernel->subscribe((EventReceiver*) &adp8866);
-    i2c.addSlaveDevice(&adp8866);
+    i2c.addSlaveDevice((I2CDevice*) &adp8866);
 
     //mgc3130->init();
 
