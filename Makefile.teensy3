@@ -4,13 +4,13 @@
 # Date:   2015.06.20
 #
 ###########################################################################
-FIRMWARE_NAME      = spatiumgenstu
+FIRMWARE_NAME  = spatiumgenstu
 
-MCU                = cortex-m4
-CPU_SPEED          = 96000000
-OPTIMIZATION       = -Os
-C_STANDARD         = gnu99
-CPP_STANDARD       = gnu++11
+MCU            = cortex-m4
+CPU_SPEED      = 96000000
+OPTIMIZATION   = -Os
+C_STANDARD     = gnu99
+CPP_STANDARD   = gnu++11
 
 WHO_I_AM       = $(shell whoami)
 HOME_DIRECTORY = /home/$(WHO_I_AM)
@@ -18,31 +18,31 @@ ARDUINO_PATH   = $(HOME_DIRECTORY)/arduino
 TEENSY_PATH    = $(ARDUINO_PATH)/hardware/teensy/avr/
 
 
+###########################################################################
 # Variables for the firmware compilation...
 ###########################################################################
-
-WHERE_I_AM     = $(shell pwd)
+WHERE_I_AM         = $(shell pwd)
 TOOLCHAIN          = $(ARDUINO_PATH)/hardware/tools/arm
 TEENSY_LOADER_PATH = $(ARDUINO_PATH)/hardware/tools/teensy_loader_cli
+FORMAT             = ihex
 
-export CC           = $(TOOLCHAIN)/bin/arm-none-eabi-gcc
-export CXX          = $(TOOLCHAIN)/bin/arm-none-eabi-g++
+export CC      = $(TOOLCHAIN)/bin/arm-none-eabi-gcc
+export CXX     = $(TOOLCHAIN)/bin/arm-none-eabi-g++
 export AR      = $(TOOLCHAIN)/bin/arm-none-eabi-ar
 export AS      = $(TOOLCHAIN)/bin/arm-none-eabi-as
-OBJCOPY            = $(TOOLCHAIN)/bin/arm-none-eabi-objcopy
-SZ_CROSS           = $(TOOLCHAIN)/bin/arm-none-eabi-size
+OBJCOPY        = $(TOOLCHAIN)/bin/arm-none-eabi-objcopy
+SZ_CROSS       = $(TOOLCHAIN)/bin/arm-none-eabi-size
+export MAKE    = $(shell which make)
 
 # This is where we will store compiled libs and the final output.
 export OUTPUT_PATH  = $(WHERE_I_AM)/build
 
 
-FORMAT             = ihex
-
 
 ###########################################################################
 # Source files, includes, and linker directives...
 ###########################################################################
-INCLUDES     = -iquote. -iquotesrc/ 
+INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -Isrc/
 INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
@@ -56,10 +56,8 @@ LD_FILE     = src/mk20dx256.ld
 LIBS = -lm -lstdc++ -larm_cortexM4l_math
 
 # Wrap the include paths into the flags...
-CFLAGS = $(INCLUDES)
-
-
-CFLAGS += $(OPTIMIZATION) -Wall
+CFLAGS  = $(INCLUDES)
+CFLAGS += -Wall
 
 CFLAGS += -DF_CPU=$(CPU_SPEED)
 CFLAGS += -mcpu=$(MCU)  -mthumb -D__MK20DX256__
@@ -74,33 +72,28 @@ CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 #CFLAGS += -MMD
 #CFLAGS += -fstack-usage
 
-CPP_FLAGS = -std=$(CPP_STANDARD) 
+CPP_FLAGS  = -std=$(CPP_STANDARD)
 CPP_FLAGS += -felide-constructors -fno-exceptions -fno-rtti
 
 
 # Options that build for certain threading models (if any).
-MANuVR_OPTIONS += -D__MANUVR_DEBUG
-MANuVR_OPTIONS += -D__MANUVR_FREERTOS
-
-CFLAGS += $(MANuVR_OPTIONS) 
-
+MANUVR_OPTIONS += -D__MANUVR_FREERTOS
+MANUVR_OPTIONS += -D__MANUVR_EVENT_PROFILER
+MANUVR_OPTIONS += -D__MANUVR_CONSOLE_SUPPORT
 
 
-###########################################################################
-# Are we on a 64-bit system? If so, we'll need to specify
-#   that we want a 32-bit build...
-# Thanks, estabroo...
-# http://www.linuxquestions.org/questions/programming-9/how-can-make-makefile-detect-64-bit-os-679513/
-###########################################################################
-LBITS = $(shell getconf LONG_BIT)
-ifeq ($(LBITS),64)
-  TARGET_WIDTH = -m32
-else
-  TARGET_WIDTH =
+# Options for various security features.
+ifeq ($(SECURE),1)
+export SECURE=1
 endif
 
+# Debugging options...
+ifeq ($(DEBUG),1)
+MANUVR_OPTIONS += -D__MANUVR_DEBUG
+#MANUVR_OPTIONS += -D__MANUVR_PIPE_DEBUG
+endif
 
-CPP_FLAGS += $(CFLAGS)
+CFLAGS += $(MANUVR_OPTIONS)
 
 
 
@@ -121,8 +114,8 @@ FREERTOS_C_SRC    += lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/tasks.c
 FREERTOS_C_SRC    += lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/timers.c
 
 
-TEENSY_C_SOURCES    = 
-TEENSY_C_SOURCES   += 
+TEENSY_C_SOURCES    =
+TEENSY_C_SOURCES   +=
 
 TEENSY_CPP_SOURCES  = $(TEENSY_PATH)libraries/Time/DateStrings.cpp
 TEENSY_CPP_SOURCES += $(TEENSY_PATH)libraries/Time/Time.cpp
@@ -148,14 +141,19 @@ SRCS   = src/SpatiumGestu.cpp $(FREERTOS_CPP_SRC) $(TEENSY_CPP_SOURCES)
 # TODO: Need to understand why -l won't blend....
 LIB_HARDCODES = $(OUTPUT_PATH)/*.a
 
-# Finally, export our flags for downstream Makefiles...
-export CFLAGS
-export CPP_FLAGS
 
 
 ###########################################################################
 # Rules for building the firmware follow...
 ###########################################################################
+# Merge our choices and export them to the downstream Makefiles...
+CFLAGS += $(MANUVR_OPTIONS) $(OPTIMIZATION)
+
+export MANUVR_PLATFORM = TEENSY3
+export CFLAGS
+export CPP_FLAGS  += $(CFLAGS)
+
+
 OBJS = $(SRCS:.c=.o)
 
 
@@ -175,18 +173,18 @@ lib: $(OBJS)
 	$(MAKE) -C lib
 
 	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_dev.c -o $(OUTPUT_PATH)/usb_dev.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial2.c -o $(OUTPUT_PATH)/serial2.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/analog.c -o $(OUTPUT_PATH)/analog.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_serial.c -o $(OUTPUT_PATH)/usb_serial.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_desc.c -o $(OUTPUT_PATH)/usb_desc.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/eeprom.c -o $(OUTPUT_PATH)/eeprom.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_mem.c -o $(OUTPUT_PATH)/usb_mem.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial1.c -o $(OUTPUT_PATH)/serial1.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/math_helper.c -o $(OUTPUT_PATH)/math_helper.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial3.c -o $(OUTPUT_PATH)/serial3.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/pins_teensy.c -o $(OUTPUT_PATH)/pins_teensy.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/mk20dx128.c -o $(OUTPUT_PATH)/mk20dx128.c.o 
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/nonstd.c -o $(OUTPUT_PATH)/nonstd.c.o 
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial2.c -o $(OUTPUT_PATH)/serial2.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/analog.c -o $(OUTPUT_PATH)/analog.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_serial.c -o $(OUTPUT_PATH)/usb_serial.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_desc.c -o $(OUTPUT_PATH)/usb_desc.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/eeprom.c -o $(OUTPUT_PATH)/eeprom.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_mem.c -o $(OUTPUT_PATH)/usb_mem.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial1.c -o $(OUTPUT_PATH)/serial1.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/math_helper.c -o $(OUTPUT_PATH)/math_helper.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial3.c -o $(OUTPUT_PATH)/serial3.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/pins_teensy.c -o $(OUTPUT_PATH)/pins_teensy.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/mk20dx128.c -o $(OUTPUT_PATH)/mk20dx128.c.o
+	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/nonstd.c -o $(OUTPUT_PATH)/nonstd.c.o
 
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
@@ -196,7 +194,7 @@ $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 
 	@echo
 	@echo $(MSG_FLASH) $@
-	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep 
+	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep
 	$(OBJCOPY) -O $(FORMAT) -R .eeprom -R .fuse -R .lock -R .signature $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).hex
 
 

@@ -1,8 +1,7 @@
 #include <FreeRTOS_ARM.h>
-#include "FirmwareDefs.h"
 #include <Platform/Platform.h>
-#include <Kernel.h>
 #include <DataStructures/StringBuilder.h>
+#include <Kernel.h>
 
 #include <Drivers/MGC3130/MGC3130.h>
 #include <Drivers/ADP8866/ADP8866.h>
@@ -37,7 +36,6 @@ static void* mainThread(void* arg) {
   //kernel->createSchedule(100, -1, false, blink_led);
   //kernel->provideKernelPID(kernel_pid);
   //kernel->provideLoggerPID(logger_pid);
-  kernel->bootstrap();
 
   while (1) {
     kernel->procIdleFlags();
@@ -48,10 +46,10 @@ static void* mainThread(void* arg) {
 
 
 void setup() {
+  platform.platformPreInit();
   pinMode(PIN_LED1, OUTPUT);
 
-  kernel = Kernel::getInstance();
-  kernel->profiler(true);
+  kernel = platform.getKernel();
 
   ManuvrSerial  _console_xport("U", HOST_BAUD_RATE);  // Indicate USB.
   ManuvrConsole _console((BufferPipe*) &_console_xport);
@@ -71,6 +69,8 @@ void setup() {
 
   // create task at priority one
   int s1 = createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
+
+  platform.bootstrap();
 
   // check for creation errors
   if (0 != s1) {
