@@ -1,7 +1,33 @@
-#include <FreeRTOS_ARM.h>
-#include <Platform/Platform.h>
+/*
+File:   main.cpp
+Author: J. Ian Lindsay
+Date:   2015.06.01
+
+Copyright 2016 Manuvr, Inc
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+   __  ____   ___  ______ __ __ __ ___  ___      ___   ____  __  ______ __ __
+  (( \ || \\ // \\ | || | || || || ||\\//||     // \\ ||    (( \ | || | || ||
+   \\  ||_// ||=||   ||   || || || || \/ ||    (( ___ ||==   \\    ||   || ||
+  \_)) ||    || ||   ||   || \\_// ||    ||     \\_|| ||___ \_))   ||   \\_//
+
+This has tacit support for Fubarino Mini, Teensy3, and Raspberry Pi.
+*/
+
+
 #include <DataStructures/StringBuilder.h>
-#include <Kernel.h>
+#include <Platform/Platform.h>
 
 #include <Drivers/MGC3130/MGC3130.h>
 #include <Drivers/ADP8866/ADP8866.h>
@@ -17,44 +43,50 @@ Kernel* kernel           = nullptr;
 
 
 #if defined(__MK20DX256__) || defined(__MK20DX128__)
+  const uint8_t PIN_LED1 = 13;  // The LED is attached to pin 13 on the teensy3.
+#elif defined(_BOARD_FUBARINO_MINI_)
+  const uint8_t PIN_LED1 = 13; // The LED is attached to pin 13 on the Fubarino Mini.
+#elif defined(RASPI) || defined(RASPI2)
+  const uint8_t PIN_LED1 = 14; // The LED is attached to pin 14 on the RasPi.
+#endif
 
-unsigned long logger_pid = 0;
-unsigned long kernel_pid = 0;
+#if defined(__MANUVR_FREERTOS)
+  unsigned long logger_pid = 0;
+  unsigned long kernel_pid = 0;
 
-// The LED is attached to pin 13 on the teensy3.
-const uint8_t PIN_LED1        = 13;
-
-
-void vApplicationTickHook() {
-  // TODO: This sucks. There must be a better way of having the kernel's
-  //   sense of time not being subservient to FreeRTOS's...
-  blink_led();
-  kernel->advanceScheduler();
-}
-
-static void* mainThread(void* arg) {
-  //kernel->createSchedule(100, -1, false, blink_led);
-  //kernel->provideKernelPID(kernel_pid);
-  //kernel->provideLoggerPID(logger_pid);
-
-  while (1) {
-    kernel->procIdleFlags();
-    //taskYIELD();
+  void vApplicationTickHook() {
+    // TODO: This sucks. There must be a better way of having the kernel's
+    //   sense of time not being subservient to FreeRTOS's...
+    blink_led();
+    platform.advanceScheduler();
   }
-  return nullptr;
-}
+
+  static void* mainThread(void* arg) {
+    //kernel->createSchedule(100, -1, false, blink_led);
+    //kernel->provideKernelPID(kernel_pid);
+    //kernel->provideLoggerPID(logger_pid);
+
+    while (1) {
+      kernel->procIdleFlags();
+      blink_led();
+      //taskYIELD();
+    }
+    return nullptr;
+  }
+#endif  // __MANUVR_FREERTOS
 
 
-void setup() {
+void setup() {}
+
+
+void loop() {
   platform.platformPreInit();
-  pinMode(PIN_LED1, OUTPUT);
+  gpioDefine(PIN_LED1, OUTPUT);
 
-  kernel = platform.getKernel();
+  kernel = platform.kernel();
 
   ManuvrSerial  _console_xport("U", HOST_BAUD_RATE);  // Indicate USB.
-  ManuvrConsole _console((BufferPipe*) &_console_xport);
   kernel->subscribe((EventReceiver*) &_console_xport);
-  kernel->subscribe((EventReceiver*) &_console);
 
   I2CAdapter i2c(0);
   kernel->subscribe((EventReceiver*) &i2c);
@@ -66,86 +98,47 @@ void setup() {
   ADP8866 adp8866(7, 8, 0x27);
   kernel->subscribe((EventReceiver*) &adp8866);
   i2c.addSlaveDevice((I2CDevice*) &adp8866);
-
-  // create task at priority one
-  int s1 = createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
+  for (int i = 0; i < 20; i++) {
+    bool _state = true;
+    for (int q = 0; q < 50000; q++) { setPin(PIN_LED1, _state);   }
+    _state = !_state;
+  }
+  for (int q = 0; q < 100000; q++) {   setPin(PIN_LED1, false);   }
 
   platform.bootstrap();
 
-  // check for creation errors
-  if (0 != s1) {
-    Serial.println(F("Creation problem"));
-    while(1);
-  }
+  ManuvrConsole _console((BufferPipe*) &_console_xport);
+  kernel->subscribe((EventReceiver*) &_console);
 
-  // start scheduler
-  vTaskStartScheduler();
+  #if defined(__MANUVR_FREERTOS)
+    // create task at priority one
+    int s1 = createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
 
-  while(1);
-}
-
-void loop() {}
-
-
-
-
-
-#elif defined(_BOARD_FUBARINO_MINI_)
-  // The LED is attached to pin 13 on the Fubarino Mini.
-  const uint8_t PIN_LED1        = 13;
-
-  uint32_t timerCallbackScheduler(uint32_t currentTime) {
-    if (kernel) kernel->advanceScheduler();
-    return (currentTime + (CORE_TICK_RATE * 1));
-  }
-
-
-  void setup() {
-    pinMode(PIN_LED1, OUTPUT);
-    Serial.begin(HOST_BAUD_RATE);   // USB
-
-    kernel = Kernel::getInstance();
-
-    //mgc3130 = new MGC3130(16, 17);
-    ADP8866 adp8866(7, 8, 0x27);
-    kernel->subscribe((EventReceiver*) &adp8866);
-    i2c.addSlaveDevice((I2CDevice*) &adp8866);
-
-    //mgc3130->init();
-
-    //kernel->createSchedule(100, -1, false, blink_led);
-
-    attachCoreTimerService(timerCallbackScheduler);
-    globalIRQEnable();
-  }
-
-
-  void loop() {
-    unsigned char* ser_buffer = (unsigned char*) alloca(255);
-    int bytes_read = 0;
-
-    while (1) {   // Service this loop for-ev-ar
-      while (Serial.available() == 0) {
-        kernel->procIdleFlags();
-      }
-
-      blink_led();
-      // Zero the buffer.
-      while (Serial.available()) {
-        tmp_char = Serial.read();
-        *(ser_buffer+bytes_read++) = tmp_char;
-
-        if (tmp_char == '\r' || tmp_char == '\n') {
-          mark_end  = true;
-          *(ser_buffer+bytes_read) = 0;
-          kernel->accumulateConsoleInput(ser_buffer, bytes_read, mark_end);
-          bytes_read = 0;
-          for (int i = 0; i < 255; i++) *(ser_buffer+i) = 0;
-        }
-      }
+    // check for creation errors
+    if (0 != s1) {
+      Serial.println(F("Creation problem"));
+      while(1);
     }
-  }
-#endif
+
+    // start scheduler
+    vTaskStartScheduler();
+    while(1);
+  #else
+    // Simple kernel-service looper.
+    while (1) {
+      kernel->procIdleFlags();
+    }
+  #endif
+}
 
 
 void blink_led() {  setPin(PIN_LED1, !readPin(PIN_LED1));  }
+
+
+#if defined(__MANUVR_LINUX)
+  // For linux builds, we provide a shunt into the loop function.
+  int main(int argc, char *argv[]) {
+    setup();
+    loop();
+  }
+#endif

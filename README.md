@@ -9,31 +9,39 @@ Positional accuracy with the MGC3130 is very good, and the gesture-detection alg
 
 
 ----------------------
-####What is in this repository:
-**./doc**:  Documentation related to this project. 
+#### What is in this repository:
+
+**./#dModels**:  Blender models to build the casings.
+
+**./confs**:  Configurations for various libraries.
+
+**./doc**:  Documentation related to this project.
+
+**./src**:  Source for the program.
 
 
 ----------------------
-####Installation
-This project depends upon [ManuvrOS](https://github.com/jspark311/ManuvrOS). So you will need to checkout that source code as well. Clone the repo and follow the installation instructions within it.
+#### Building
 
-----------------------
-####Because this project is meant to be used in an Arduino-esque environment...
-To overcome the Arduino library-within-library limitation, please follow [these instructions](http://www.joshianlindsay.com/index.php?id=147) to make your IDE treat gcc a little better:
+##### First, you may want to download the dependencies...
 
+    ./downloadDeps.sh
 
 
-----------------------
-Bitcoin accelerates feature requests and bug fixes. :-)
+##### The Raspi version:
 
-**19fZqFWGUqb9u6AQTk71AXP8hBHnyxWK3X**
+    make BOARD=RASPI
+
+##### You can also enable debugging features:
+
+    make DEBUG=1
 
 
 ----------------------
 ####License
-Original code is GPL v2. 
+Original code is covered by LICENSE.
 
-Code adapted from others' work inherrits their license terms, which were preserved in the commentary where it applies. 
+Code adapted from others' work inherits their license terms, which were preserved in the commentary where it applies.
 
 ----------------------
 ####Cred:
