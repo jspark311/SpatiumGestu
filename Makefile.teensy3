@@ -15,7 +15,7 @@ CPP_STANDARD   = gnu++11
 WHO_I_AM       = $(shell whoami)
 HOME_DIRECTORY = /home/$(WHO_I_AM)
 ARDUINO_PATH   = $(HOME_DIRECTORY)/arduino
-TEENSY_PATH    = $(ARDUINO_PATH)/hardware/teensy/avr/
+export TEENSY_PATH    = $(ARDUINO_PATH)/hardware/teensy/avr/
 
 
 ###########################################################################
@@ -30,8 +30,8 @@ export CC      = $(TOOLCHAIN)/bin/arm-none-eabi-gcc
 export CXX     = $(TOOLCHAIN)/bin/arm-none-eabi-g++
 export AR      = $(TOOLCHAIN)/bin/arm-none-eabi-ar
 export AS      = $(TOOLCHAIN)/bin/arm-none-eabi-as
-OBJCOPY        = $(TOOLCHAIN)/bin/arm-none-eabi-objcopy
-SZ_CROSS       = $(TOOLCHAIN)/bin/arm-none-eabi-size
+export OBJCOPY = $(TOOLCHAIN)/bin/arm-none-eabi-objcopy
+export SZ      = $(TOOLCHAIN)/bin/arm-none-eabi-size
 export MAKE    = $(shell which make)
 
 # This is where we will store compiled libs and the final output.
@@ -44,16 +44,16 @@ export OUTPUT_PATH  = $(WHERE_I_AM)/build
 ###########################################################################
 INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -Isrc/
-INCLUDES    += -I./ -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
+INCLUDES    += -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
-INCLUDES    += -Ilib/ManuvrOS
+INCLUDES    += -I$(WHERE_I_AM)/lib/ManuvrOS/ManuvrOS
 INCLUDES    += -I$(WHERE_I_AM)/lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/
 INCLUDES    += -I$(WHERE_I_AM)/confs
 
 LD_FILE     = src/mk20dx256.ld
 
 # Libraries to link
-LIBS = -lm -lstdc++ -larm_cortexM4l_math
+LIBS = -lm -lstdc++ -larm_cortexM4l_math -lextras
 
 # Wrap the include paths into the flags...
 CFLAGS  = $(INCLUDES)
@@ -65,15 +65,10 @@ CFLAGS += -mcpu=$(MCU)  -mthumb -D__MK20DX256__
 CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += -mlittle-endian
 CFLAGS += -mfloat-abi=soft
-
 CFLAGS += -DARDUINO=105 -nostdlib -DTEENSYDUINO=117
-
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
-#CFLAGS += -MMD
-#CFLAGS += -fstack-usage
 
-CPP_FLAGS  = -std=$(CPP_STANDARD)
-CPP_FLAGS += -felide-constructors -fno-exceptions -fno-rtti
+CPP_FLAGS  = -felide-constructors -fno-exceptions -fno-rtti
 
 
 # Options that build for certain threading models (if any).
@@ -92,8 +87,6 @@ ifeq ($(DEBUG),1)
 MANUVR_OPTIONS += -D__MANUVR_DEBUG
 #MANUVR_OPTIONS += -D__MANUVR_PIPE_DEBUG
 endif
-
-CFLAGS += $(MANUVR_OPTIONS)
 
 
 
@@ -114,29 +107,7 @@ FREERTOS_C_SRC    += lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/tasks.c
 FREERTOS_C_SRC    += lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/utility/timers.c
 
 
-TEENSY_C_SOURCES    =
-TEENSY_C_SOURCES   +=
-
-TEENSY_CPP_SOURCES  = $(TEENSY_PATH)libraries/Time/DateStrings.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)libraries/Time/Time.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)libraries/i2c_t3/i2c_t3.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/new.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/HardwareSerial1.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/HardwareSerial2.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/HardwareSerial3.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/main.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/IntervalTimer.cpp
-
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/Print.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/DMAChannel.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/yield.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/WString.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/WMath.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/usb_inst.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/Stream.cpp
-TEENSY_CPP_SOURCES += $(TEENSY_PATH)cores/teensy3/avr_emulation.cpp
-
-SRCS   = src/SpatiumGestu.cpp $(FREERTOS_CPP_SRC) $(TEENSY_CPP_SOURCES)
+CPP_SRCS  = src/SpatiumGestu.cpp # $(FREERTOS_CPP_SRC)
 
 # TODO: Need to understand why -l won't blend....
 LIB_HARDCODES = $(OUTPUT_PATH)/*.a
@@ -161,7 +132,7 @@ OBJS = $(SRCS:.c=.o)
 
 
 all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
-	$(SZ_CROSS) $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
+	$(SZ) $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 
 %.o : %.cpp
@@ -169,28 +140,14 @@ all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 
 lib: $(OBJS)
-	$(shell mkdir -p $(OUTPUT_PATH))
+	mkdir -p $(OUTPUT_PATH)
 	$(MAKE) -C lib
-
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_dev.c -o $(OUTPUT_PATH)/usb_dev.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial2.c -o $(OUTPUT_PATH)/serial2.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/analog.c -o $(OUTPUT_PATH)/analog.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_serial.c -o $(OUTPUT_PATH)/usb_serial.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_desc.c -o $(OUTPUT_PATH)/usb_desc.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/eeprom.c -o $(OUTPUT_PATH)/eeprom.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/usb_mem.c -o $(OUTPUT_PATH)/usb_mem.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial1.c -o $(OUTPUT_PATH)/serial1.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/math_helper.c -o $(OUTPUT_PATH)/math_helper.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/serial3.c -o $(OUTPUT_PATH)/serial3.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/pins_teensy.c -o $(OUTPUT_PATH)/pins_teensy.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/mk20dx128.c -o $(OUTPUT_PATH)/mk20dx128.c.o
-	$(CC)   -c $(CFLAGS) $(TEENSY_PATH)cores/teensy3/nonstd.c -o $(OUTPUT_PATH)/nonstd.c.o
 
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
-	$(CXX) -c $(SRCS) $(CPP_FLAGS)
-	$(CC) -c $(CFLAGS) $(FREERTOS_C_SRC)
-	$(CXX) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o $(OUTPUT_PATH)/*.o $(LIB_HARDCODES) -L$(OUTPUT_PATH) $(LIBS)
+	$(CXX) -c $(CPP_SRCS) $(CPP_FLAGS) -std=$(CPP_STANDARD)
+	$(CC) -c $(CFLAGS) $(FREERTOS_C_SRC) -std=$(C_STANDARD)
+	$(CXX) -std=$(CPP_STANDARD) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o $(OUTPUT_PATH)/*.o $(LIB_HARDCODES) -L$(OUTPUT_PATH) $(LIBS)
 
 	@echo
 	@echo $(MSG_FLASH) $@
@@ -202,12 +159,10 @@ program: $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 	$(TEENSY_LOADER_PATH) -mmcu=mk20dx128 -w -v $(OUTPUT_PATH)/$(FIRMWARE_NAME).hex
 
 
-fullclean:
-	rm -f *.d *.o *.su *~
-	rm -rf doc/doxygen/*
-	rm -rf $(OUTPUT_PATH)
-	$(MAKE) clean -C lib
-
 clean:
 	rm -f *.d *.o *.su *~
 	rm -rf $(OUTPUT_PATH)
+
+fullclean: clean
+	rm -rf doc/doxygen/*
+	$(MAKE) clean -C lib
