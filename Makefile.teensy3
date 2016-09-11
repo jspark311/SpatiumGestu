@@ -48,12 +48,13 @@ INCLUDES    += -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I$(WHERE_I_AM)/lib/ManuvrOS/ManuvrOS
 INCLUDES    += -I$(WHERE_I_AM)/lib/FreeRTOS_Arduino/FreeRTOS_ARM/src/
+INCLUDES    += -I$(TEENSY_PATH)/libraries/EEPROM
 INCLUDES    += -I$(WHERE_I_AM)/confs
 
 LD_FILE     = src/mk20dx256.ld
 
 # Libraries to link
-LIBS = -lm -lstdc++ -larm_cortexM4l_math -lextras
+LIBS = -lm -larm_cortexM4l_math -lextras
 
 # Wrap the include paths into the flags...
 CFLAGS  = $(INCLUDES)
@@ -147,7 +148,7 @@ lib: $(OBJS)
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
 	$(CXX) -c $(CPP_SRCS) $(CPP_FLAGS) -std=$(CPP_STANDARD)
 	$(CC) -c $(CFLAGS) $(FREERTOS_C_SRC) -std=$(C_STANDARD)
-	$(CXX) -std=$(CPP_STANDARD) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o $(OUTPUT_PATH)/*.o $(LIB_HARDCODES) -L$(OUTPUT_PATH) $(LIBS)
+	$(CXX) -std=$(CPP_STANDARD) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf *.o $(LIB_HARDCODES) -L$(OUTPUT_PATH) $(LIBS)
 
 	@echo
 	@echo $(MSG_FLASH) $@
