@@ -50,7 +50,7 @@ Kernel* kernel           = nullptr;
   const uint8_t PIN_LED1 = 14; // The LED is attached to pin 14 on the RasPi.
 #endif
 
-#if defined(__MANUVR_FREERTOS)
+#if defined(__BUILD_HAS_THREADS)
   unsigned long logger_pid = 0;
   unsigned long kernel_pid = 0;
 
@@ -73,10 +73,11 @@ Kernel* kernel           = nullptr;
     }
     return nullptr;
   }
-#endif  // __MANUVR_FREERTOS
+#endif  //   __BUILD_HAS_THREADS
 
 
-void setup() {}
+void setup() {
+}
 
 
 void loop() {
@@ -105,12 +106,13 @@ void loop() {
   }
   for (int q = 0; q < 100000; q++) {   setPin(PIN_LED1, false);   }
 
-  platform.bootstrap();
-
   ManuvrConsole _console((BufferPipe*) &_console_xport);
   kernel->subscribe((EventReceiver*) &_console);
 
-  #if defined(__MANUVR_FREERTOS)
+sleep_millis(5000);
+  platform.bootstrap();
+
+  #if defined(__BUILD_HAS_THREADS)
     // create task at priority one
     int s1 = createThread(&kernel_pid, nullptr, mainThread,  (void*) kernel);
 

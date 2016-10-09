@@ -11,7 +11,7 @@
 ###########################################################################
 SHELL          = /bin/sh
 WHO_I_AM       = $(shell whoami)
-WHERE_I_AM     = $(shell pwd)
+BUILD_ROOT     = $(shell pwd)
 HOME_DIRECTORY = /home/$(WHO_I_AM)
 MPEIDE_PATH    = $(HOME_DIRECTORY)/mpide-0023-linux64-20140821
 PLATFORM_PATH  = $(MPEIDE_PATH)/hardware/pic32/
@@ -70,7 +70,7 @@ CFLAGS += -G1024 -fno-short-double # -Wcast-align
 
 CFLAGS += -DMPIDEVER=16777998 -DMPIDE=23 -DARDUINO=23 -D_USE_USB_FOR_SERIAL_
 
-CFLAGS += -D__MANUVR_CONSOLE_SUPPORT
+CFLAGS += -DMANUVR_CONSOLE_SUPPORT
 
 CPP_FLAGS = -fno-exceptions $(CFLAGS) 
 
