@@ -14,7 +14,7 @@ CPP_STANDARD   = gnu++11
 
 
 ###########################################################################
-# Variables for the firmware compilation...
+# Environmental awareness...
 ###########################################################################
 WHO_I_AM       = $(shell whoami)
 HOME_DIRECTORY = /home/$(WHO_I_AM)
@@ -39,7 +39,7 @@ export MAKE    = $(shell which make)
 
 
 ###########################################################################
-# Source files, includes, and linker directives...
+# Includes, flags, and linker directives...
 ###########################################################################
 CPP_FLAGS    = -felide-constructors -fno-exceptions -fno-rtti
 CFLAGS       = -Wall -nostdlib
@@ -51,7 +51,7 @@ INCLUDES    += -I./ -Isrc/
 INCLUDES    += -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
 INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
 INCLUDES    += -I$(TEENSY_PATH)/libraries/EEPROM
-INCLUDES    += -I$(BUILD_ROOT)/lib/
+INCLUDES    += -I$(BUILD_ROOT)/lib
 INCLUDES    += -I$(BUILD_ROOT)/confs
 INCLUDES    += -I$(BUILD_ROOT)/lib/ManuvrOS/ManuvrOS
 
@@ -63,6 +63,12 @@ CFLAGS += -mlittle-endian
 CFLAGS += -mfloat-abi=soft
 CFLAGS += -DARDUINO=105 -DTEENSYDUINO=120
 CFLAGS += -DUSB_VID=null -DUSB_PID=null -DUSB_SERIAL -DLAYOUT_US_ENGLISH
+
+
+###########################################################################
+# Source file definitions...
+###########################################################################
+SOURCES_CPP  = src/SpatiumGestu.cpp
 
 
 ###########################################################################
@@ -95,12 +101,6 @@ endif
 
 
 ###########################################################################
-# Source file definitions...
-###########################################################################
-SOURCES_CPP  = src/SpatiumGestu.cpp
-
-
-###########################################################################
 # exports, consolidation....
 ###########################################################################
 OBJS  = $(SOURCES_C:.c=.o) $(SOURCES_CPP:.cpp=.o)
@@ -110,7 +110,7 @@ CFLAGS += $(MANUVR_OPTIONS) $(OPTIMIZATION) $(INCLUDES)
 
 export MANUVR_PLATFORM = TEENSY3
 export CFLAGS
-export CPP_FLAGS  += $(CFLAGS)
+export CPP_FLAGS += $(CFLAGS)
 
 
 ###########################################################################
@@ -122,17 +122,17 @@ export CPP_FLAGS  += $(CFLAGS)
 all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 %.o : %.cpp
-	$(CXX) -std=$(CPP_STANDARD) $(OPTIMIZATION) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
 
 %.o : %.c
-	$(CXX) -std=$(CPP_STANDARD) $(OPTIMIZATION) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
 
 lib: $(OBJS)
 	mkdir -p $(OUTPUT_PATH)
 	$(MAKE) -C lib
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
-	$(CXX) $(OBJS) -std=$(CPP_STANDARD) $(OPTIMIZATION) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf -L$(OUTPUT_PATH) $(LIBS)
+	$(CXX) $(OBJS) -std=$(CPP_STANDARD) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf -L$(OUTPUT_PATH) $(LIBS)
 	@echo
 	@echo $(MSG_FLASH) $@
 	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep
