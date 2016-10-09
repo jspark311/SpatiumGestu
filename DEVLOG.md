@@ -16,3 +16,17 @@ This update of SpatiumGestu was spurned by numerous platform API changes, and
     76932    3600    3976   84508   14a1c  Before removing the empty transport cases.
     76932    3600    3976   84508   14a1c  After. No change.
     76956    3600    3976   84532   14a34  BufferPipe no longer depends on chained constructor.
+
+_---J. Ian Lindsay_
+
+------
+
+### 2016.10.09
+
+Bringing this project up-to-date.
+
+    Teensy3
+    98060    3632    4132  105824   19d60  DEBUG=1 THREADS=1
+    92644    3624    3828  100096   18700  DEBUG=1
+
+_---J. Ian Lindsay_

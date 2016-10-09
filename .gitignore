@@ -1,5 +1,11 @@
 .directory
+
 3DModels/spacium-gestu-casing.blend1
+
+*.o
+build
+
 lib/ManuvrOS
 lib/FreeRTOS_Arduino
-*.o
+lib/i2c_t3/
+lib/i2c_t3/

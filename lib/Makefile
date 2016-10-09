@@ -1,9 +1,18 @@
-# Build all libraries
-C_STANDARD      = c99
+###########################################################################
+# Makefile for libraries
+# Author: J. Ian Lindsay
+###########################################################################
+C_STANDARD      = gnu99
 CPP_STANDARD    = gnu++11
 
-LOCAL_C_FLAGS   = $(CFLAGS)
-LOCAL_CXX_FLAGS = $(CPP_FLAGS)
+SOURCES_C      =
+SOURCES_CPP    =
+LIBS_TO_BUILD  = libmanuvr.a
+INCLUDES       = -Ii2c_t3
+
+###########################################################################
+# Source files
+###########################################################################
 
 FREERTOS_C_SRC     = FreeRTOS_Arduino/libraries/FreeRTOS_ARM/src/FreeRTOS_ARM.c
 FREERTOS_C_SRC    += FreeRTOS_Arduino/libraries/FreeRTOS_ARM/src/utility/croutine.c
@@ -37,7 +46,6 @@ TEENSY3_C_SRC += $(TEENSY_PATH)cores/teensy3/nonstd.c
 
 TEENSY3_CPP_SRC  = $(TEENSY_PATH)libraries/Time/DateStrings.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)libraries/Time/Time.cpp
-TEENSY3_CPP_SRC += $(TEENSY_PATH)libraries/i2c_t3/i2c_t3.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/new.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/HardwareSerial1.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/HardwareSerial2.cpp
@@ -53,19 +61,34 @@ TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/usb_inst.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/Stream.cpp
 TEENSY3_CPP_SRC += $(TEENSY_PATH)cores/teensy3/avr_emulation.cpp
 
+# TODO: Until Teensyduino is pulled into /lib...
+TEENSY3_CPP_SRC += $(TEENSY_PATH)libraries/i2c_t3/i2c_t3.cpp
+#TEENSY3_CPP_SRC += i2c_t3/i2c_t3.cpp
 
-SOURCES_CPP = $(TEENSY3_CPP_SRC)
-SOURCES_C   = $(TEENSY3_C_SRC)
-#SOURCES_CPP = $(FREERTOS_CPP_SRC) $(TEENSY3_CPP_SRC)
-#SOURCES_C   = $(FREERTOS_C_SRC) $(TEENSY3_C_SRC)
+
+###########################################################################
+# Option conditionals
+###########################################################################
+ifeq ($(THREADS),1)
+	SOURCES_CPP += $(FREERTOS_CPP_SRC)
+	SOURCES_C   += $(FREERTOS_C_SRC)
+endif
+
+
+###########################################################################
+# Parameter unification and make targets
+###########################################################################
+SOURCES_CPP += $(TEENSY3_CPP_SRC)
+SOURCES_C   += $(TEENSY3_C_SRC)
+
+LOCAL_C_FLAGS   = $(CFLAGS) $(INCLUDES) -nostdlib
+LOCAL_CXX_FLAGS = $(CPP_FLAGS) $(INCLUDES)
 
 OBJS  = $(SOURCES_C:.c=.o) $(SOURCES_CPP:.cpp=.o)
 
-LIBNAME = libextras.a
 
-
-all: $(LIBNAME)
-	$(MAKE) -C ManuvrOS/ManuvrOS
+all: $(LIBS_TO_BUILD) $(OBJS)
+	$(AR) -rvs $(OUTPUT_PATH)/libextras.a $(OBJS)
 
 %.o : %.c
 	$(CC) $(INCLUDES) $(LOCAL_C_FLAGS) -std=$(C_STANDARD) -c $< -o $@
@@ -73,10 +96,10 @@ all: $(LIBNAME)
 %.o : %.cpp
 	$(CXX) $(INCLUDES) $(LOCAL_CXX_FLAGS) -std=$(CPP_STANDARD) -c $< -o $@
 
-$(LIBNAME): $(OBJS)
-	$(AR) -rvs $(OUTPUT_PATH)/$@ $(OBJS)
+libmanuvr.a:
+	$(MAKE) -C ManuvrOS/ManuvrOS
 
 clean:
 	rm -f $(OBJS)
-	rm -f $(OUTPUT_PATH)/$(LIBNAME)
+	rm -f $(OUTPUT_PATH)/libextras.a
 	$(MAKE) clean -C ManuvrOS/ManuvrOS
