@@ -34,8 +34,8 @@ export SZ      = $(TOOLCHAIN)/bin/arm-none-eabi-size
 export MAKE    = $(shell which make)
 
 # This is where we will store compiled libs and the final output.
-export OUTPUT_PATH  = $(BUILD_ROOT)/build
 export BUILD_ROOT   = $(shell pwd)
+export OUTPUT_PATH  = $(BUILD_ROOT)/build
 
 
 ###########################################################################
