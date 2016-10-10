@@ -109,7 +109,7 @@ void loop() {
   ManuvrConsole _console((BufferPipe*) &_console_xport);
   kernel->subscribe((EventReceiver*) &_console);
 
-sleep_millis(5000);
+  sleep_millis(1000);
   platform.bootstrap();
 
   #if defined(__BUILD_HAS_THREADS)
