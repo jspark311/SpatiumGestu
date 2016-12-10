@@ -3,6 +3,7 @@
 # Author: J. Ian Lindsay
 # Date:   2015.06.20
 #
+# Teensy3 target
 ###########################################################################
 FIRMWARE_NAME  = spatiumgenstu
 
