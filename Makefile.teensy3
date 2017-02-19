@@ -11,7 +11,7 @@ MCU            = cortex-m4
 CPU_SPEED      = 96000000
 OPTIMIZATION   = -Os
 C_STANDARD     = gnu99
-CPP_STANDARD   = gnu++11
+CXX_STANDARD   = gnu++11
 
 
 ###########################################################################
@@ -42,15 +42,15 @@ export MAKE    = $(shell which make)
 ###########################################################################
 # Includes, flags, and linker directives...
 ###########################################################################
-CPP_FLAGS    = -felide-constructors -fno-exceptions -fno-rtti
+CXXFLAGS    = -felide-constructors -fno-exceptions -fno-rtti
 CFLAGS       = -Wall -nostdlib
 LIBS         = -lm -larm_cortexM4l_math -lmanuvr -lextras
 LD_FILE      = src/mk20dx256.ld
 
 INCLUDES     = -iquote. -iquotesrc/
 INCLUDES    += -I./ -Isrc/
-INCLUDES    += -I$(TEENSY_PATH)libraries -I$(ARDUINO_PATH)/libraries
-INCLUDES    += -I$(TEENSY_PATH)cores/teensy3
+INCLUDES    += -I$(TEENSY_PATH)/libraries -I$(ARDUINO_PATH)/libraries/Time
+INCLUDES    += -I$(TEENSY_PATH)/cores/teensy3
 INCLUDES    += -I$(TEENSY_PATH)/libraries/EEPROM
 INCLUDES    += -I$(BUILD_ROOT)/lib
 INCLUDES    += -I$(BUILD_ROOT)/confs
@@ -111,7 +111,7 @@ CFLAGS += $(MANUVR_OPTIONS) $(OPTIMIZATION) $(INCLUDES)
 
 export MANUVR_PLATFORM = TEENSY3
 export CFLAGS
-export CPP_FLAGS += $(CFLAGS)
+export CXXFLAGS += $(CFLAGS)
 
 
 ###########################################################################
@@ -123,17 +123,17 @@ export CPP_FLAGS += $(CFLAGS)
 all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 %.o : %.cpp
-	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CXX_STANDARD) $(CXXFLAGS) -c -o $@ $^
 
 %.o : %.c
-	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CXX_STANDARD) $(CXXFLAGS) -c -o $@ $^
 
 lib: $(OBJS)
 	mkdir -p $(OUTPUT_PATH)
 	$(MAKE) -C lib
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
-	$(CXX) $(OBJS) -std=$(CPP_STANDARD) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf -L$(OUTPUT_PATH) $(LIBS)
+	$(CXX) $(OBJS) -std=$(CXX_STANDARD) -Wl,--gc-sections -T$(LD_FILE) -mcpu=$(MCU) -mthumb -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf -L$(OUTPUT_PATH) $(LIBS)
 	@echo
 	@echo $(MSG_FLASH) $@
 	$(OBJCOPY) -O $(FORMAT) -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/$(FIRMWARE_NAME).eep

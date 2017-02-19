@@ -29,7 +29,7 @@ This has tacit support for Fubarino Mini, Teensy3, and Raspberry Pi.
 #include <DataStructures/StringBuilder.h>
 #include <Platform/Platform.h>
 
-#include <Drivers/MGC3130/MGC3130.h>
+#include <Drivers/Sensors/MGC3130/MGC3130.h>
 #include <Drivers/ADP8866/ADP8866.h>
 
 #include <Transports/ManuvrSerial/ManuvrSerial.h>
@@ -44,6 +44,13 @@ Kernel* kernel           = nullptr;
 
 #if defined(__MK20DX256__) || defined(__MK20DX128__)
   const uint8_t PIN_LED1 = 13;  // The LED is attached to pin 13 on the teensy3.
+
+  const I2CAdapterOptions i2c_opts(
+    0,    // Device number
+    18,   // sda
+    19    // scl
+  );
+
 #elif defined(_BOARD_FUBARINO_MINI_)
   const uint8_t PIN_LED1 = 13; // The LED is attached to pin 13 on the Fubarino Mini.
 #elif defined(RASPI) || defined(RASPI2)
@@ -89,14 +96,14 @@ void loop() {
   ManuvrSerial  _console_xport("U", HOST_BAUD_RATE);  // Indicate USB.
   kernel->subscribe((EventReceiver*) &_console_xport);
 
-  I2CAdapter i2c(0);
+  I2CAdapter i2c(&i2c_opts);
   kernel->subscribe((EventReceiver*) &i2c);
 
   //MGC3130 mgc3130(16, 17);
   //mgc3130->init();
   //kernel->subscribe((EventReceiver*) &mgc3130);
 
-  ADP8866 adp8866(7, 8, 0x27);
+  ADP8866 adp8866(11, 12);
   kernel->subscribe((EventReceiver*) &adp8866);
   i2c.addSlaveDevice((I2CDevice*) &adp8866);
   for (int i = 0; i < 20; i++) {

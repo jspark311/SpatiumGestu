@@ -11,7 +11,7 @@ MCU            = 32MX250F128D
 CPU_SPEED      = 48000000L
 OPTIMIZATION   = -Os
 C_STANDARD     = gnu99
-CPP_STANDARD   = gnu++11
+CXX_STANDARD   = gnu++11
 
 BOARD_DEF      = _BOARD_FUBARINO_MINI_
 
@@ -44,7 +44,7 @@ export MAKE    = $(shell which make)
 ###########################################################################
 # Includes, flags, and linker directives...
 ###########################################################################
-CPP_FLAGS    = -felide-constructors -fno-exceptions -fno-rtti
+CXXFLAGS    = -felide-constructors -fno-exceptions -fno-rtti
 CFLAGS       = -Wall -nostdlib
 
 LIBS       = -lm -lmanuvr -lextras
@@ -112,7 +112,7 @@ CFLAGS += $(MANUVR_OPTIONS) $(OPTIMIZATION) $(INCLUDES)
 
 export MANUVR_PLATFORM = FUBARINO
 export CFLAGS
-export CPP_FLAGS += $(CFLAGS)
+export CXXFLAGS += $(CFLAGS)
 
 
 ###########################################################################
@@ -124,17 +124,17 @@ export CPP_FLAGS += $(CFLAGS)
 all: lib $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf
 
 %.o : %.cpp
-	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CXX_STANDARD) $(CXXFLAGS) -c -o $@ $^
 
 %.o : %.c
-	$(CXX) -std=$(CPP_STANDARD) $(CPP_FLAGS) -c -o $@ $^
+	$(CXX) -std=$(CXX_STANDARD) $(CXXFLAGS) -c -o $@ $^
 
 lib: $(OBJS)
 	mkdir -p $(OUTPUT_PATH)
 	$(MAKE) -C lib
 
 $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf:
-	$(CPP_CROSS) -c $(CPP_FLAGS) $(SRCS)
+	$(CPP_CROSS) -c $(CXXFLAGS) $(SRCS)
 	$(AR_CROSS) rvs $(OUTPUT_PATH)/core.a *.o
 	$(CPP_CROSS)  -Os  -Wl,--gc-sections  -mdebugger  -mno-peripheral-libs  -nostartfiles  -mprocessor=32MX250F128D -o $(OUTPUT_PATH)/$(FIRMWARE_NAME).elf $(OUTPUT_PATH)/core.a -L. $(LIBS) -T $(LD_FILE) -T$(PLATFORM_PATH)/cores/pic32/chipKIT-application-COMMON.ld
 

@@ -3,7 +3,7 @@
 # Author: J. Ian Lindsay
 ###########################################################################
 C_STANDARD      = gnu99
-CPP_STANDARD    = gnu++11
+CXX_STANDARD    = gnu++11
 
 SOURCES_C      =
 SOURCES_CPP    =
@@ -82,7 +82,7 @@ SOURCES_CPP += $(TEENSY3_CPP_SRC)
 SOURCES_C   += $(TEENSY3_C_SRC)
 
 LOCAL_C_FLAGS   = $(CFLAGS) $(INCLUDES) -nostdlib
-LOCAL_CXX_FLAGS = $(CPP_FLAGS) $(INCLUDES)
+LOCAL_CXX_FLAGS = $(CXXFLAGS) $(INCLUDES)
 
 OBJS  = $(SOURCES_C:.c=.o) $(SOURCES_CPP:.cpp=.o)
 
@@ -94,7 +94,7 @@ all: $(LIBS_TO_BUILD) $(OBJS)
 	$(CC) $(INCLUDES) $(LOCAL_C_FLAGS) -std=$(C_STANDARD) -c $< -o $@
 
 %.o : %.cpp
-	$(CXX) $(INCLUDES) $(LOCAL_CXX_FLAGS) -std=$(CPP_STANDARD) -c $< -o $@
+	$(CXX) $(INCLUDES) $(LOCAL_CXX_FLAGS) -std=$(CXX_STANDARD) -c $< -o $@
 
 libmanuvr.a:
 	$(MAKE) -C ManuvrOS/ManuvrOS
